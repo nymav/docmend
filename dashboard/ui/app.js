@@ -35,7 +35,7 @@ function render() {
   const metrics = [['stale', c.stale, 'Outdated', 'Confirmed declaration drift'], ['review', c.review, 'Needs review', 'A person needs to check'], ['accurate', c.accurate, 'Matches code', 'Checked explicit declarations'], ['safe', c.safe, 'Proposed repairs', 'Marked safe by the engine']];
   for (const [kind, value, title, hint] of metrics) {
     const n = el('div', 'metric ' + kind), top = el('div', 'metric-top'); top.append(el('span', 'status-dot'), document.createTextNode(title));
-    n.append(top, el('div', 'metric-value', value.toString().padStart(2, '0')), el('small', '', hint)); $('#metrics').append(n);
+    n.append(top, el('div', 'metric-value', String(value)), el('small', '', hint)); $('#metrics').append(n);
   }
   const visible = filterFindings(r, state.query, state.status);
   $('#visible-count').textContent = `${visible.length} / ${r.findings.length}`;
@@ -105,6 +105,12 @@ async function importFiles(files) {
 }
 for (const id of ['import-button', 'rail-import']) $('#' + id).addEventListener('click', () => $('#file-input').click());
 $('#file-input').addEventListener('change', e => importFiles([...e.target.files]));
+document.addEventListener('keydown', e => {
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
+  if (!typing && e.key === '/' && !$('#guide').open) { e.preventDefault(); $('#search').focus(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o' && !$('#guide').open) { e.preventDefault(); $('#file-input').click(); }
+  if (e.key === 'Escape' && document.activeElement === $('#search')) { state.query = ''; $('#search').value = ''; render(); }
+});
 $('#search').addEventListener('input', e => { state.query = e.target.value; render(); });
 $('#status-filter').addEventListener('change', e => { state.status = e.target.value; render(); });
 $('#raw-export').addEventListener('click', () => { if (current()) download('docmend-report.json', JSON.stringify(current().report, null, 2), 'application/json'); });
