@@ -45,3 +45,7 @@ PYTHONPATH=src python scripts/coverage_report.py
 ```
 
 `build_eval_cases.py` and `build_source_cases.py` refuse to overwrite frozen datasets. The source-case builder needs the original local repositories only when authoring a new dataset, not when reproducing the existing scores. Keep new natural-history, reviewer-adjudicated data separate from these development/challenge fixtures. Do not keep tuning on the same challenge results while calling them held out.
+
+## Release gates
+
+The scoring command exits 2 if any observed safe repair is incorrect or any section produces an operational error. These are engineering safety gates, not significance tests. Basic useful repairs are enforced by unit regressions, so abstaining on every task is not a sufficient replacement for the working detector.
