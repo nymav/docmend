@@ -1,0 +1,4 @@
+report=docmend-report/report.json
+stale=1
+review=0
+safe-edits=1
