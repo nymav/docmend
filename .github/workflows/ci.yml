@@ -1,0 +1,36 @@
+name: Validate DocMend
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit and integration tests (no external APIs)
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Package installation
+        run: python -m pip install --no-deps .
+      - name: Installed CLI
+        run: docmend --version
+      - name: End-to-end demo and fixture evaluation
+        env:
+          PYTHONPATH: src
+        run: python scripts/demo.py --output artifacts/demo
+      - name: Docker image builds
+        run: docker build -t docmend-ci .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: demo-python-${{ matrix.python }}
+          path: artifacts/demo/
+          if-no-files-found: error
