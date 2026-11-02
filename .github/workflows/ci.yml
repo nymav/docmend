@@ -27,6 +27,14 @@ jobs:
         env:
           PYTHONPATH: src
         run: python scripts/demo.py --output artifacts/demo
+      - name: Frozen evaluation and line coverage
+        env:
+          PYTHONPATH: src
+        run: |
+          python scripts/evaluate.py --split development --output artifacts/evaluation/development-v0.1.1
+          python scripts/evaluate.py --split challenge --output artifacts/evaluation/challenge-v0.1.1
+          python scripts/evaluate.py --split source-backed --output artifacts/evaluation/source-backed-v0.1.1
+          python scripts/coverage_report.py
       - name: Docker image builds
         run: docker build -t docmend-ci .
       - uses: actions/upload-artifact@v7
