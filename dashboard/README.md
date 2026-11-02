@@ -6,10 +6,13 @@ account, apply repairs or create pull requests.
 
 ## Use
 
-Open the workspace and select **Import report**. Choose `report.json` from a
-DocMend CLI run or an extracted GitHub Actions artifact. Select a finding, inspect
-**Proposed change**, then open **Code evidence** to compare source snapshots.
-Download a proposed patch or export the original report JSON. Two clearly labelled
+The first screen offers **Open my report** and **Try a working example**.
+Choose `report.json` from a DocMend CLI run or an extracted GitHub Actions
+artifact, or drop the file onto the page. The workspace automatically opens the
+first finding. Code evidence and the documentation correction appear together;
+there are no detail tabs. Download the patch directly or export the original JSON.
+A first-use disclosure explains where to obtain a report. The example includes a
+one-click link to its saved recheck result, clearly distinguished from a live scan. Two clearly labelled
 constructed demo reports show actual saved engine output before and after repair.
 
 Files are read in browser memory. They are never uploaded, persisted in browser
@@ -23,7 +26,8 @@ Only safe proposals can be exported as patches; drafts remain visible for review
 Zero-context patches may require `git apply --unidiff-zero`; review all patches first.
 
 Keyboard shortcuts: `/` focuses filtering, Escape clears it, Ctrl/Cmd+O opens import.
-Detail tabs support arrow keys, Home and End. Status is communicated in words as
+`j` and `k` select the next and previous visible findings. On-screen navigation
+also supports reports with multiple findings. Status is communicated in words as
 well as colour. Mobile stacks findings and detail; desktop uses a file navigator
 and adjacent review panel. Tablet retains the report switcher.
 
