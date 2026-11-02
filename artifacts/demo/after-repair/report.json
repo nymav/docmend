@@ -1,0 +1,72 @@
+{
+  "base": "1956568c196601431bb26e4a2ceccb2faddcb3a6",
+  "head": "a9c969339cce5752a385330909df1582e3392a3c",
+  "index_hash": "c41afe1bbe26811b71d2b516431873b4b95d6019d804e758c793cb70708c9c24",
+  "changes": [
+    {
+      "kind": "contract",
+      "unit": "api.py::fetch",
+      "path": "api.py",
+      "line": 1,
+      "before": {
+        "id": "api.py::fetch",
+        "path": "api.py",
+        "name": "fetch",
+        "kind": "function",
+        "line": 1,
+        "end_line": 2,
+        "source": "def fetch(url, timeout=30):\n    return url\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=30)\"}",
+        "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+        "facts": {
+          "signature": "fetch(url, timeout=30)",
+          "params": {
+            "url": null,
+            "timeout": "30"
+          },
+          "decorators": [],
+          "cli_names": []
+        }
+      },
+      "after": {
+        "id": "api.py::fetch",
+        "path": "api.py",
+        "name": "fetch",
+        "kind": "function",
+        "line": 1,
+        "end_line": 2,
+        "source": "def fetch(url, timeout=60):\n    return url\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=60)\"}",
+        "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+        "facts": {
+          "signature": "fetch(url, timeout=60)",
+          "params": {
+            "url": null,
+            "timeout": "60"
+          },
+          "decorators": [],
+          "cli_names": []
+        }
+      }
+    }
+  ],
+  "findings": [
+    {
+      "section_id": "docs/docmend-integration-fixture.md#api",
+      "path": "docs/docmend-integration-fixture.md",
+      "heading": "API",
+      "status": "accurate",
+      "reason": "Explicit documented signature/config literal matches the new contract; surrounding prose is not semantically certified",
+      "unit_ids": [
+        "api.py::fetch"
+      ],
+      "confidence": 1.0,
+      "evidence": "static"
+    }
+  ],
+  "edits": [],
+  "warnings": [
+    "Offline mode: behavioural and ambiguous changes are review findings, not LLM-verified decisions"
+  ],
+  "schema_version": 1
+}
