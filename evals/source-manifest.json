@@ -1,0 +1,55 @@
+{
+  "case_count": 12,
+  "sha256": "d3e1372502f602893ed492b519ce93464378156d2fd2ef42fe6dbe263e8a172a",
+  "sources": [
+    {
+      "kind": "source-backed-controlled-mutation",
+      "repository_name": "docatlas",
+      "source_commit": "0688998769e3abaddaf828a8dd779d6905a064fc",
+      "source_path": "src/docatlas/evaluation.py",
+      "source_unit": "src/docatlas/evaluation.py::evaluate",
+      "full_source_file_sha256": "d06e1c60e6b03ab87e0770fdcd00d3181652e599aff4ed3a143e3c7ac1f69396",
+      "snippet_sha256": "93dc3aeeff89a27d638adddd8e7f734f2c010ce2903e10d90633926f8326a867",
+      "source_lines": [
+        67,
+        138
+      ],
+      "documentation": "Constructed exact-signature declaration, not pre-existing natural documentation",
+      "label_author": "AI-assisted construction; not independently human reviewed",
+      "natural_repository_history": false
+    },
+    {
+      "kind": "source-backed-controlled-mutation",
+      "repository_name": "mailayer",
+      "source_commit": "89b20b3ef7fd693d75bf5a0fecd5a14b9624eb2e",
+      "source_path": "backend/app/ai/chat.py",
+      "source_unit": "backend/app/ai/chat.py::chat",
+      "full_source_file_sha256": "250785ddff94f1704c07e8c76e9681eb60458f9b901242b887f092917d46596a",
+      "snippet_sha256": "bada7f43304b90eeabeffbe5e3ed6232d407fe17a6745ef4e074e5ab2ea72267",
+      "source_lines": [
+        37,
+        68
+      ],
+      "documentation": "Constructed exact-signature declaration, not pre-existing natural documentation",
+      "label_author": "AI-assisted construction; not independently human reviewed",
+      "natural_repository_history": false
+    },
+    {
+      "kind": "source-backed-controlled-mutation",
+      "repository_name": "drax-tbs",
+      "source_commit": "f345d3caf2e0fa1ad6dfef8aaee25d46a5599329",
+      "source_path": "backend/app/services/pdf_utils.py",
+      "source_unit": "backend/app/services/pdf_utils.py::chunk_text",
+      "full_source_file_sha256": "f8b923745f377ed97b81795324e97774b03b019635734f8380a97671ecbb5cdd",
+      "snippet_sha256": "3eb610579c167d96cc0adcb0eeb95b0478f39b3bb3004eee1462c11524659d92",
+      "source_lines": [
+        8,
+        20
+      ],
+      "documentation": "Constructed exact-signature declaration, not pre-existing natural documentation",
+      "label_author": "AI-assisted construction; not independently human reviewed",
+      "natural_repository_history": false
+    }
+  ],
+  "scope": "Isolated actual function snippets with controlled changes and constructed docs, not full-repository natural-history accuracy."
+}
