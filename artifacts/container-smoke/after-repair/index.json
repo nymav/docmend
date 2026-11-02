@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "units": [
+    {
+      "id": "api.py::fetch",
+      "path": "api.py",
+      "name": "fetch",
+      "kind": "function",
+      "line": 1,
+      "end_line": 2,
+      "source": "def fetch(url, timeout=60):\n    return url\n",
+      "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=60)\"}",
+      "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+      "facts": {
+        "signature": "fetch(url, timeout=60)",
+        "params": {
+          "url": null,
+          "timeout": "60"
+        },
+        "decorators": [],
+        "cli_names": []
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "README.md#api",
+      "path": "README.md",
+      "heading": "API",
+      "start": 0,
+      "end": 3,
+      "text": "# API\n\nSignature: `fetch(url, timeout=60)`.\n",
+      "file_hash": "d132b202601f14152258023e57708c8f27e2f12b666db3ad190f2669390bffb1"
+    }
+  ],
+  "links": [
+    {
+      "unit": "api.py::fetch",
+      "section": "README.md#api",
+      "method": "reference",
+      "score": 1.0
+    }
+  ],
+  "fingerprint": "09ae92f687dfca5f06b57ef4fd9fb83607177f92a05214ff9701670d4dacee0a",
+  "changed_hunks": [
+    {
+      "path": "README.md",
+      "old_start": 3,
+      "old_count": 1,
+      "new_start": 3,
+      "new_count": 1
+    },
+    {
+      "path": "api.py",
+      "old_start": 1,
+      "old_count": 1,
+      "new_start": 1,
+      "new_count": 1
+    }
+  ],
+  "git_diff_sha256": "fb4ef634b97110c41c74f7c2f1baa83b597ae42514784b7d15219ccc6d20e2cf"
+}
