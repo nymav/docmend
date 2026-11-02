@@ -1,0 +1,104 @@
+{
+  "dataset": "12 constructed development fixtures; not a human-reviewed held-out benchmark",
+  "outcomes": [
+    {
+      "case": "default-change",
+      "expected_status": "stale",
+      "status": "stale",
+      "expected_safe_repair": true,
+      "safe_repairs": 1,
+      "passed": true
+    },
+    {
+      "case": "parameter-rename",
+      "expected_status": "stale",
+      "status": "stale",
+      "expected_safe_repair": true,
+      "safe_repairs": 1,
+      "passed": true
+    },
+    {
+      "case": "removed-api",
+      "expected_status": "review",
+      "status": "review",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "body-change",
+      "expected_status": "review",
+      "status": "review",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "body-and-default",
+      "expected_status": "review",
+      "status": "review",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "comment-only",
+      "expected_status": "none",
+      "status": "none",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "whitespace-only",
+      "expected_status": "none",
+      "status": "none",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "docstring-only",
+      "expected_status": "none",
+      "status": "none",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "docs-already-current",
+      "expected_status": "accurate",
+      "status": "accurate",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "documentation-only",
+      "expected_status": "none",
+      "status": "none",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "no-changes",
+      "expected_status": "none",
+      "status": "none",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    },
+    {
+      "case": "unsupported-prose",
+      "expected_status": "review",
+      "status": "review",
+      "expected_safe_repair": false,
+      "safe_repairs": 0,
+      "passed": true
+    }
+  ],
+  "passed": 12,
+  "total": 12,
+  "interpretation": "Review is abstention/manual triage, not a confirmed stale diagnosis. No broad detection accuracy claim is made."
+}
