@@ -1,0 +1,7 @@
+--- a/docs/docmend-integration-fixture.md
++++ b/docs/docmend-integration-fixture.md
+@@ -1,3 +1,3 @@
+ # DocMend controlled integration fixture
+ 
+-Signature: `evaluate(store, dataset: Path, modes, k=5, minimum_dense=0.55)`
++Signature: `evaluate(store, dataset: Path, modes, k=6, minimum_dense=0.55)`
