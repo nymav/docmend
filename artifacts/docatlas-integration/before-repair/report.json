@@ -1,0 +1,101 @@
+{
+  "base": "fa1e47ca0c7faf5c2fc7a4276ecf552ce9f33823",
+  "head": "47d640296631a0308cf5249c0b8f7192a07f2b8b",
+  "index_hash": "18128dc2677c2368fc314a23abebc2325b6d329bc8aa416b5210983b7d1b3e7d",
+  "changes": [
+    {
+      "kind": "contract",
+      "unit": "src/docatlas/evaluation.py::evaluate",
+      "path": "src/docatlas/evaluation.py",
+      "line": 67,
+      "before": {
+        "id": "src/docatlas/evaluation.py::evaluate",
+        "path": "src/docatlas/evaluation.py",
+        "name": "evaluate",
+        "kind": "function",
+        "line": 67,
+        "end_line": 138,
+        "source": "def evaluate(store, dataset: Path, modes, k=5, minimum_dense=0.55):\n    cases = load_cases(dataset)\n    # Labels must exist in the corpus; otherwise recall numbers would be misleading.\n    docs = {d[\"filename\"]: store.document(d[\"id\"]) for d in store.list_documents()}\n    for case in cases:\n        for item in case[\"relevant\"]:\n            doc = docs.get(item[\"filename\"])\n            if not doc or not any(\n                normalize_quote(item[\"quote\"]) in normalize_quote(p[\"text\"])\n                for p in doc[\"passages\"]\n            ):\n                raise ValueError(f\"Missing labeled evidence for {case['id']}: {item['filename']}\")\n    report = {\n        \"created_at\": datetime.now(UTC).isoformat(),\n        \"dataset_sha256\": hashlib.sha256(dataset.read_bytes()).hexdigest(),\n        \"corpus_fingerprint\": store.fingerprint(),\n        \"embedding_model\": store.encoder.name if store.encoder else None,\n        \"k\": k,\n        \"min_dense_score\": minimum_dense,\n        \"case_count\": len(cases),\n        \"modes\": {},\n        \"scope\": \"Retrieval and abstention only. Does not measure generated-answer accuracy.\",\n    }\n    for mode in modes:\n        results = []\n        # Warm model once. Timings exclude startup/download cost, explicitly reported.\n        store.search(cases[0][\"question\"], mode, k)\n        for case in cases:\n            start = time.perf_counter()\n            hits = store.search(case[\"question\"], mode, k)\n            latency = (time.perf_counter() - start) * 1000\n            abstained = not sufficient_evidence(case[\"question\"], hits, minimum_dense)\n            results.append(\n                {\n                    \"id\": case[\"id\"],\n                    \"category\": case.get(\"category\", \"general\"),\n                    \"question\": case[\"question\"],\n                    **score_case(case, hits),\n                    \"expected_abstention\": not case[\"relevant\"],\n                    \"abstained\": abstained,\n                    \"latency_ms\": round(latency, 3),\n                    \"retrieved_ids\": [h[\"id\"] for h in hits],\n                }\n            )\n\n        def summary(rows):\n            output = {}\n            for metric in (\"recall\", \"mrr\", \"ndcg\"):\n                values = [r[metric] for r in rows if r[metric] is not None]\n                output[metric] = round(statistics.mean(values), 4) if values else None\n            negatives = [r for r in rows if r[\"expected_abstention\"]]\n            positives = [r for r in rows if not r[\"expected_abstention\"]]\n            output[\"unanswerable_abstention_rate\"] = (\n                round(statistics.mean(r[\"abstained\"] for r in negatives), 4) if negatives else None\n            )\n            output[\"answerable_false_abstention_rate\"] = (\n                round(statistics.mean(r[\"abstained\"] for r in positives), 4) if positives else None\n            )\n            latencies = sorted(r[\"latency_ms\"] for r in rows)\n            output[\"warm_p95_ms\"] = latencies[math.ceil(len(latencies) * 0.95) - 1]\n            output[\"count\"] = len(rows)\n            return output\n\n        report[\"modes\"][mode] = {\n            \"summary\": summary(results),\n            \"categories\": {\n                category: summary([r for r in results if r[\"category\"] == category])\n                for category in sorted({r[\"category\"] for r in results})\n            },\n            \"cases\": results,\n        }\n    return report\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"evaluate(store, dataset: Path, modes, k=5, minimum_dense=0.55)\"}",
+        "semantic": "086a6b86339876260a5293de8f38fb9ac7c8e4bc74a460a656a7b2da85037326",
+        "facts": {
+          "signature": "evaluate(store, dataset: Path, modes, k=5, minimum_dense=0.55)",
+          "params": {
+            "store": null,
+            "dataset": null,
+            "modes": null,
+            "k": "5",
+            "minimum_dense": "0.55"
+          },
+          "decorators": []
+        }
+      },
+      "after": {
+        "id": "src/docatlas/evaluation.py::evaluate",
+        "path": "src/docatlas/evaluation.py",
+        "name": "evaluate",
+        "kind": "function",
+        "line": 67,
+        "end_line": 138,
+        "source": "def evaluate(store, dataset: Path, modes, k=6, minimum_dense=0.55):\n    cases = load_cases(dataset)\n    # Labels must exist in the corpus; otherwise recall numbers would be misleading.\n    docs = {d[\"filename\"]: store.document(d[\"id\"]) for d in store.list_documents()}\n    for case in cases:\n        for item in case[\"relevant\"]:\n            doc = docs.get(item[\"filename\"])\n            if not doc or not any(\n                normalize_quote(item[\"quote\"]) in normalize_quote(p[\"text\"])\n                for p in doc[\"passages\"]\n            ):\n                raise ValueError(f\"Missing labeled evidence for {case['id']}: {item['filename']}\")\n    report = {\n        \"created_at\": datetime.now(UTC).isoformat(),\n        \"dataset_sha256\": hashlib.sha256(dataset.read_bytes()).hexdigest(),\n        \"corpus_fingerprint\": store.fingerprint(),\n        \"embedding_model\": store.encoder.name if store.encoder else None,\n        \"k\": k,\n        \"min_dense_score\": minimum_dense,\n        \"case_count\": len(cases),\n        \"modes\": {},\n        \"scope\": \"Retrieval and abstention only. Does not measure generated-answer accuracy.\",\n    }\n    for mode in modes:\n        results = []\n        # Warm model once. Timings exclude startup/download cost, explicitly reported.\n        store.search(cases[0][\"question\"], mode, k)\n        for case in cases:\n            start = time.perf_counter()\n            hits = store.search(case[\"question\"], mode, k)\n            latency = (time.perf_counter() - start) * 1000\n            abstained = not sufficient_evidence(case[\"question\"], hits, minimum_dense)\n            results.append(\n                {\n                    \"id\": case[\"id\"],\n                    \"category\": case.get(\"category\", \"general\"),\n                    \"question\": case[\"question\"],\n                    **score_case(case, hits),\n                    \"expected_abstention\": not case[\"relevant\"],\n                    \"abstained\": abstained,\n                    \"latency_ms\": round(latency, 3),\n                    \"retrieved_ids\": [h[\"id\"] for h in hits],\n                }\n            )\n\n        def summary(rows):\n            output = {}\n            for metric in (\"recall\", \"mrr\", \"ndcg\"):\n                values = [r[metric] for r in rows if r[metric] is not None]\n                output[metric] = round(statistics.mean(values), 4) if values else None\n            negatives = [r for r in rows if r[\"expected_abstention\"]]\n            positives = [r for r in rows if not r[\"expected_abstention\"]]\n            output[\"unanswerable_abstention_rate\"] = (\n                round(statistics.mean(r[\"abstained\"] for r in negatives), 4) if negatives else None\n            )\n            output[\"answerable_false_abstention_rate\"] = (\n                round(statistics.mean(r[\"abstained\"] for r in positives), 4) if positives else None\n            )\n            latencies = sorted(r[\"latency_ms\"] for r in rows)\n            output[\"warm_p95_ms\"] = latencies[math.ceil(len(latencies) * 0.95) - 1]\n            output[\"count\"] = len(rows)\n            return output\n\n        report[\"modes\"][mode] = {\n            \"summary\": summary(results),\n            \"categories\": {\n                category: summary([r for r in results if r[\"category\"] == category])\n                for category in sorted({r[\"category\"] for r in results})\n            },\n            \"cases\": results,\n        }\n    return report\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"evaluate(store, dataset: Path, modes, k=6, minimum_dense=0.55)\"}",
+        "semantic": "086a6b86339876260a5293de8f38fb9ac7c8e4bc74a460a656a7b2da85037326",
+        "facts": {
+          "signature": "evaluate(store, dataset: Path, modes, k=6, minimum_dense=0.55)",
+          "params": {
+            "store": null,
+            "dataset": null,
+            "modes": null,
+            "k": "6",
+            "minimum_dense": "0.55"
+          },
+          "decorators": []
+        }
+      }
+    }
+  ],
+  "findings": [
+    {
+      "section_id": "README.md#docatlas-measured-not-assumed",
+      "path": "README.md",
+      "heading": "DocAtlas > Measured, not assumed",
+      "status": "review",
+      "reason": "Changed code is linked to this section; semantic accuracy requires review",
+      "unit_ids": [
+        "src/docatlas/evaluation.py::evaluate"
+      ],
+      "confidence": 0.0,
+      "evidence": "static"
+    },
+    {
+      "section_id": "docs/docmend-integration-fixture.md#docmend-controlled-integration-fixture",
+      "path": "docs/docmend-integration-fixture.md",
+      "heading": "DocMend controlled integration fixture",
+      "status": "stale",
+      "reason": "Documented call/default differs from the new AST contract",
+      "unit_ids": [
+        "src/docatlas/evaluation.py::evaluate"
+      ],
+      "confidence": 1.0,
+      "evidence": "static"
+    }
+  ],
+  "edits": [
+    {
+      "section_id": "docs/docmend-integration-fixture.md#docmend-controlled-integration-fixture",
+      "path": "docs/docmend-integration-fixture.md",
+      "start": 0,
+      "end": 3,
+      "before": "# DocMend controlled integration fixture\n\nSignature: `evaluate(store, dataset: Path, modes, k=5, minimum_dense=0.55)`\n",
+      "after": "# DocMend controlled integration fixture\n\nSignature: `evaluate(store, dataset: Path, modes, k=6, minimum_dense=0.55)`\n",
+      "file_hash": "6348c65008709b54275b19a3ac5f361a3f3f850f392398e72c2dcbefe17ea18c",
+      "mode": "safe",
+      "reason": "Documented call/default differs from the new AST contract",
+      "evidence": "static"
+    }
+  ],
+  "warnings": [
+    "Offline mode: behavioural and ambiguous changes are review findings, not LLM-verified decisions"
+  ],
+  "schema_version": 1
+}
