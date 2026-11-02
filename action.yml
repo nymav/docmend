@@ -1,0 +1,45 @@
+name: DocMend
+description: Detect documentation drift and generate evidence-bound repairs
+branding:
+  icon: book-open
+  color: blue
+inputs:
+  base:
+    description: Immutable base commit (defaults to PR base)
+    required: false
+  head:
+    description: Immutable head commit (defaults to PR head)
+    required: false
+  output:
+    description: Repository-relative artifact directory
+    default: docmend-report
+  llm:
+    description: Opt in to bounded model diagnosis and review-only repair drafts
+    default: 'false'
+  semantic:
+    description: Opt in to actual embedding-based mapping
+    default: 'false'
+  llm-api-key:
+    description: Provider key; endpoint and model are configured in trusted base TOML
+    required: false
+  publish:
+    description: Explicit same-repository PR publishing; never merges
+    default: 'false'
+  github-token:
+    description: Write-scoped token only when publish is explicitly enabled
+    required: false
+  fail-on:
+    description: 'review, stale, or never'
+    default: review
+outputs:
+  report:
+    description: Path to JSON report
+  stale:
+    description: Number of confirmed stale sections
+  review:
+    description: Number of sections requiring review
+  safe-edits:
+    description: Number of mechanically checkable edits
+runs:
+  using: docker
+  image: Dockerfile
