@@ -1,3 +1,7 @@
+# Current validation — 0.1.1
+
+The expanded 3 November 2026 results are in [EVALUATION.md](EVALUATION.md) and `artifacts/evaluation/RELEASE_VALIDATION.json`: 73 tests, approximately 90.8% executable-line coverage and 64 evaluation cases. The original 0.1.0 record follows for history.
+
 # Validation record — 2 November 2026
 
 **Release status: validated local pilot. Live provider/GitHub integration and public release remain pending.**
