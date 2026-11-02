@@ -1,0 +1,32 @@
+name: Documentation drift
+on:
+  pull_request:
+    paths: ['**.py', '**.md', '**.mdx', '**.toml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check documentation
+        # Replace OWNER/DOCMEND and pin the audited action's full commit SHA.
+        # Never use './' to execute PR-controlled action code with credentials.
+        uses: OWNER/DOCMEND@REPLACE_WITH_AUDITED_COMMIT_SHA
+        with:
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          output: docmend-report
+          llm: 'false'
+          semantic: 'false'
+          publish: 'false'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: documentation-report
+          path: docmend-report/
+          if-no-files-found: warn
