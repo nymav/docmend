@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from docmend.evaluation import METHODS,aggregate,assert_disjoint,evaluate,load_cases,predict,ratio,wilson
+from docmend.evaluation import METHODS,aggregate,assert_disjoint,evaluate,load_cases,predict,ratio,wilson,release_gates
 from docmend.models import DocMendError
 from docmend.pipeline import analyze_files
 
@@ -41,6 +41,12 @@ class MetricTests(unittest.TestCase):
         x=aggregate([outcome(True,'error')],[]);self.assertEqual(x['fn'],1);self.assertEqual(x['operational_error_sections'],1);self.assertEqual(x['decision_coverage'],0)
     def test_confidence_interval_and_null(self):
         lo,hi=wilson(1,1);self.assertLess(lo,1);self.assertEqual(hi,1);self.assertIsNone(wilson(0,0));self.assertIsNone(ratio(0,0))
+    def test_bad_repairs_block_release_gate(self):
+        result={'methods':{'docmend':{'overall':{'incorrect_repairs':1,'operational_error_sections':0}}}}
+        self.assertFalse(release_gates(result)['passed'])
+    def test_errors_block_release_gate(self):
+        result={'methods':{'docmend':{'overall':{'incorrect_repairs':0,'operational_error_sections':1}}}}
+        self.assertFalse(release_gates(result)['passed'])
     def test_p95_uses_nearest_rank(self):self.assertEqual(aggregate([],list(range(1,21)))['latency_ms_p95'],19)
 
 class DatasetTests(unittest.TestCase):
