@@ -144,3 +144,10 @@ def report_markdown(result,title):
     for o in result['outcomes']['docmend']:out.append(f'| {o["case"]} | {"stale" if o["gold_stale"] else "accurate"} | {o["status"]} | {o["safe_repairs"]} / {o["correct_repairs"]} |')
     out+=['','## Limits','','Cases and labels are AI-authored constructed examples unless provenance explicitly states a real source snapshot. Source-backed mutation cases still use constructed documentation/changes. They are not natural historical documentation bugs or independently human-reviewed ground truth. No paid model was evaluated. Timing is warm local sequential execution, not concurrent-load performance.','']
     return '\n'.join(out)
+
+
+def release_gates(result):
+    """Engineering safety gates, not statistical significance or production proof."""
+    score=result['methods']['docmend']['overall']
+    checks={'no_incorrect_safe_repairs':score['incorrect_repairs']==0,'no_operational_errors':score['operational_error_sections']==0}
+    return {'passed':all(checks.values()),'checks':checks,'policy':'Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee.'}
