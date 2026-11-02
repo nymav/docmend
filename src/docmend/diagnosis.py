@@ -13,6 +13,7 @@ def _inline(text: str):
     # Ignore fenced code blocks and code spans containing newlines.
     fence = None
     offset = 0
+    hidden = [(m.start(), m.end()) for m in re.finditer(r"<!--.*?(?:-->|$)", text, re.S)]
     for line in text.splitlines(keepends=True):
         f = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
         if f:
@@ -22,14 +23,20 @@ def _inline(text: str):
                 fence = None
         elif fence is None:
             for m in re.finditer(r"(?<!`)`([^`\r\n]+)`(?!`)", line):
-                yield offset + m.start(1), offset + m.end(1), m[1]
+                start, end = offset + m.start(1), offset + m.end(1)
+                if not any(left < end and start < right for left, right in hidden):
+                    yield start, end, m[1]
         offset += len(line)
 
 
-def _declared_fact(text: str, offset: int) -> bool:
+def _declared_fact(text: str, offset: int, heading: str = "") -> bool:
     # An explicit argument in an example may intentionally override the default.
     # Automatic repair needs a declaration label, not just a matching old number.
     line = text[text.rfind("\n", 0, offset) + 1:offset].rstrip("`").strip()
+    if re.search(r"\b(?:old|previous|former|formerly|historical|deprecated|obsolete|legacy|example|override)\b", line, re.I):
+        return False
+    if re.search(r"\b(?:history|changelog|archive|deprecated|migration)\b", heading, re.I):
+        return False
     return bool(re.search(r"(?:signature|default(?: value)?|default configuration)\s*(?:is\s*)?:?\s*$", line, re.I))
 
 
@@ -40,7 +47,7 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
     replacements = []
     reasons = []
     for start, end, snippet in _inline(section.text):
-        if not _declared_fact(section.text, start):
+        if not _declared_fact(section.text, start, section.heading):
             continue
         result = snippet
         if old.kind == "function":
@@ -98,7 +105,7 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
             return Finding(section.id, section.path, section.heading, "stale", reason, ids, 1.0), Edit(section.id, section.path, section.start, section.end, section.text, after, section.file_hash, "safe", reason)
         old, new = changes[0].before, changes[0].after
         if old and new and old.kind == new.kind:
-            snippets = [value for start, _, value in _inline(section.text) if _declared_fact(section.text, start)]
+            snippets = [value for start, _, value in _inline(section.text) if _declared_fact(section.text, start, section.heading)]
             current = False
             if old.kind == "function" and old.facts["signature"] != new.facts["signature"]:
                 current = new.facts["signature"] in snippets
