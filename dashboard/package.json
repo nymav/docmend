@@ -1,9 +1,13 @@
 {
-  "name": "sites-worker-esm-starter",
+  "name": "docmend-review-workspace",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "scripts": {
-    "build": "bash scripts/build.sh",
+    "dev": "node scripts/compile-ui.mjs && node scripts/preview.mjs",
+    "test": "node scripts/compile-ui.mjs && node --test tests/*.test.mjs",
+    "build": "node scripts/compile-ui.mjs && bash scripts/build.sh",
     "validate": "node scripts/validate-artifact.mjs"
   }
 }
