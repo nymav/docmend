@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-03",
+  "label_provenance": "AI-authored constructed labels; not independently human reviewed",
+  "splits": {
+    "development": {
+      "count": 28,
+      "sha256": "fdb833a9e999b5b27605fb4d7da048e6d707fbde33ab9bfd83b3347f1d03d504"
+    },
+    "challenge": {
+      "count": 24,
+      "sha256": "76ad6eca41f6b55c3fc327e6137204624be2dc2750a50fae65a3ec96e27f8eab"
+    }
+  },
+  "policy": "Develop against development only. Challenge is reserved from tuning; same author and related task grammar mean it is not an independent real-world test set."
+}
