@@ -31,8 +31,8 @@
         "repair_wilson_95": null,
         "negative_section_preservation": 1.0,
         "operational_error_sections": 0,
-        "latency_ms_median": 0.06308348383754492,
-        "latency_ms_p95": 0.12466590851545334
+        "latency_ms_median": 0.06270804442465305,
+        "latency_ms_p95": 0.2903328277170658
       },
       "by_family": {
         "behaviour": {
@@ -563,8 +563,8 @@
         "repair_wilson_95": null,
         "negative_section_preservation": 1.0,
         "operational_error_sections": 0,
-        "latency_ms_median": 0.09581237100064754,
-        "latency_ms_p95": 0.12745801359415054
+        "latency_ms_median": 0.09166647214442492,
+        "latency_ms_p95": 0.13233395293354988
       },
       "by_family": {
         "behaviour": {
@@ -1092,8 +1092,8 @@
         ],
         "negative_section_preservation": 1.0,
         "operational_error_sections": 0,
-        "latency_ms_median": 0.11997902765870094,
-        "latency_ms_p95": 0.1688748598098755
+        "latency_ms_median": 0.13014604337513447,
+        "latency_ms_p95": 0.2015409991145134
       },
       "by_family": {
         "behaviour": {
@@ -2816,8 +2816,17 @@
   "split": "development",
   "cases": 28,
   "dataset_sha256": "fdb833a9e999b5b27605fb4d7da048e6d707fbde33ab9bfd83b3347f1d03d504",
-  "software_source_sha256": "5276cec4dd7d868e20740aed348f4b2caba49b688b413ccf4bf2c466158a9ef2",
-  "git_head": "80df65d9f520b550d146c9fbb1d174465fd2f84a",
+  "software_source_sha256": "ae232aed51e8a9b7e2c9aac80c6c9044ea95bc52b984176415549c68d8fe6b85",
+  "detector_source_sha256": "70f391ac221ac4c3f34a686f9464a25996a268d8c07736c53dc0b0f5fd45416e",
+  "git_head": "4685e3ef788f3c2c225c56aec37622d4df57aca8",
   "python": "3.12.14",
-  "provider_calls": 0
+  "provider_calls": 0,
+  "release_gates": {
+    "passed": true,
+    "checks": {
+      "no_incorrect_safe_repairs": true,
+      "no_operational_errors": true
+    },
+    "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+  }
 }
