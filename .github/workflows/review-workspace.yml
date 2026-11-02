@@ -1,0 +1,29 @@
+name: Validate review workspace
+on:
+  push:
+    paths: ['dashboard/**', '.github/workflows/review-workspace.yml']
+  pull_request:
+    paths: ['dashboard/**', '.github/workflows/review-workspace.yml']
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Validate report parsing and real patch application
+        run: npm test
+      - name: Build the private workspace
+        run: npm run build
+      - name: Validate the deployment module
+        run: npm run validate
