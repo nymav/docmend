@@ -1,0 +1,33 @@
+1. Create baseline commit with a documented default.
+2. Change that default in code, leaving docs stale.
+3. Run check: inspect before-repair/summary.md and safe.patch.
+4. Apply guarded edit; commit only repaired Markdown.
+5. Recheck: after-repair/ compares the original base to repaired head; any remaining review findings are retained.
+
+{
+  "source": "constructed end-to-end demo",
+  "base": "98ed3277bb4e26f50a3643052f61257824964983",
+  "head": "ec9e1028450594823e627d863c95192750d9fb2a",
+  "repaired": "ef783da78454eead31ea647b6d7fe3dbe81497a8",
+  "before": {
+    "changed_units": 1,
+    "stale": 1,
+    "review": 0,
+    "accurate": 0,
+    "safe_edits": 1,
+    "draft_edits": 0,
+    "coverage_gaps": 0
+  },
+  "after": {
+    "changed_units": 1,
+    "stale": 0,
+    "review": 0,
+    "accurate": 1,
+    "safe_edits": 0,
+    "draft_edits": 0,
+    "coverage_gaps": 0
+  },
+  "applied": [
+    "docs/docmend-integration-fixture.md"
+  ]
+}
