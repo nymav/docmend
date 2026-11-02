@@ -39,10 +39,12 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/engine/src
           BASE_REF: ${{ github.event.pull_request.base.sha || inputs.base }}
           HEAD_REF: ${{ github.event.pull_request.head.sha || inputs.head }}
-        run: >-
-          python -m docmend.cli check --repo target
-          --base "$BASE_REF" --head "$HEAD_REF"
-          --output docmend-report --fail-on stale
+        run: |
+          BASE_SHA=$(git -C target rev-parse --verify --end-of-options "${BASE_REF}^{commit}" 2>/dev/null || git -C target rev-parse --verify --end-of-options "origin/${BASE_REF}^{commit}")
+          HEAD_SHA=$(git -C target rev-parse --verify --end-of-options "${HEAD_REF}^{commit}" 2>/dev/null || git -C target rev-parse --verify --end-of-options "origin/${HEAD_REF}^{commit}")
+          python -m docmend.cli check --repo target \
+            --base "$BASE_SHA" --head "$HEAD_SHA" \
+            --output docmend-report --fail-on stale
       - name: Add report to run summary
         if: always()
         run: |
