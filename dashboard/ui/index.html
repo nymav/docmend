@@ -6,13 +6,28 @@
   <title>DocMend · Review workspace</title>
   <link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
 </head>
-<body>
+<body class="welcome-mode">
   <header class="app-header">
-    <a class="brand" href="/" aria-label="DocMend home"><span class="brandmark" aria-hidden="true">D<span>/</span></span><strong>docmend</strong></a>
+    <button class="brand" id="home-button" aria-label="DocMend home"><span class="brandmark" aria-hidden="true">D<span>/</span></span><strong>docmend</strong></button>
     <span class="header-divider"></span><span class="app-title">Review workspace</span>
-    <div class="header-actions"><button id="open-guide" class="text-button">Guide</button><button id="import-button" class="primary">Import report <span aria-hidden="true">+</span></button><input type="file" id="file-input" accept=".json,application/json" multiple hidden></div>
+    <div class="header-actions"><button id="workspace-button" class="text-button" hidden>My reports</button><button id="open-guide" class="text-button">Guide</button><button id="import-button" class="primary">Open report <span aria-hidden="true">+</span></button><input type="file" id="file-input" accept=".json,application/json" multiple hidden></div>
   </header>
-  <div class="app-shell">
+  <section class="welcome" id="welcome" aria-labelledby="welcome-title">
+    <div class="welcome-topline"><span class="product-label">DOCUMENTATION REVIEW</span><span class="local-label"><span class="privacy-dot"></span> Runs in your browser</span></div>
+    <div class="welcome-layout">
+      <div class="welcome-copy"><h1 id="welcome-title">Know what changed.<br>See what needs fixing.</h1><p>DocMend compares code with its documentation. Open a report to see outdated text, the code behind it, and a proposed correction—all together.</p>
+        <div class="start-actions"><button id="welcome-import" class="primary">Open my report <span aria-hidden="true">+</span></button><button id="try-example" class="secondary">Try a working example</button></div>
+        <p class="file-hint">Choose a <code>report.json</code> file. It stays on your device.</p>
+        <div id="welcome-message" role="status" aria-live="polite" hidden></div>
+      </div>
+      <div class="example-preview" aria-label="Preview of the included example"><div class="preview-heading"><span class="preview-dot"></span> A small change. An outdated sentence.<span class="preview-tag">EXAMPLE</span></div><div class="preview-content"><div class="preview-label"><span>01</span> THE CODE CHANGED</div><div class="preview-code"><div class="remove"><span>−</span><code>def fetch(url, timeout=<b>30</b>):</code></div><div class="add"><span>+</span><code>def fetch(url, timeout=<b>60</b>):</code></div></div><div class="preview-link" aria-hidden="true"></div><div class="preview-label"><span>02</span> THE DOCS NEED TO FOLLOW</div><div class="preview-doc"><span class="preview-doc-label">Documented default</span><span><del>timeout=30</del><span class="preview-arrow" aria-hidden="true">→</span><strong>timeout=60</strong></span></div><div class="preview-result"><span class="privacy-dot"></span> One precise correction. Ready to review.</div></div></div>
+    </div>
+    <div class="start-steps"><div><span class="step-number">1</span><div><strong>Open a report</strong><p>Use your file, or explore the example.</p></div></div><div><span class="step-number">2</span><div><strong>Compare the evidence</strong><p>See changed code beside the proposed fix.</p></div></div><div><span class="step-number">3</span><div><strong>Download the patch</strong><p>Review and apply it in your repository.</p></div></div></div>
+    <details class="get-report"><summary>Don’t have a report yet?</summary><div class="get-report-content"><p>Run a check in your Python repository using the DocMend CLI. It writes <code>.docmend/report/report.json</code>. Open that file here.</p><pre>docmend check --repo /path/to/repository \
+  --base BASE_COMMIT --head HEAD_COMMIT</pre><p>Already using GitHub Actions? Download the <strong>documentation-report</strong> artifact, extract it, and open its <code>report.json</code>.</p><a href="https://github.com/nymav/docmend/actions/workflows/documentation-drift.yml" target="_blank" rel="noopener noreferrer">Open DocMend’s GitHub workflow</a></div></details>
+    <p class="welcome-boundary">This workspace reviews saved reports. It doesn’t start scans or change repository files.</p>
+  </section>
+  <div class="app-shell" id="review-workspace" hidden>
     <aside class="rail">
       <div class="rail-heading"><h2>Reports</h2><span id="library-count">2</span></div>
       <div id="run-list"></div><button class="rail-import" id="rail-import">+ Import report</button>
@@ -20,7 +35,8 @@
     </aside>
     <main class="workspace">
       <div id="message" role="status" aria-live="polite" hidden></div>
-      <section class="report-banner" aria-label="Current report"><div class="report-name"><span class="file-glyph" aria-hidden="true">▤</span><div><h1 id="report-name"></h1><span id="report-origin"></span></div></div><div class="report-actions"><button id="raw-export" class="secondary">Export JSON</button></div></section>
+      <section class="report-banner" aria-label="Current report"><div class="report-name"><span class="file-glyph" aria-hidden="true">▤</span><div><h1 id="report-name" tabindex="-1"></h1><span id="report-origin"></span></div></div><div class="report-actions"><button id="raw-export" class="secondary">Export JSON</button></div></section>
+      <div id="example-context" class="example-context" hidden></div>
       <section class="commit-strip" aria-label="Compared commits"><span class="comparison-label">Comparison</span><span><small>BASE</small><code id="base-sha"></code></span><span class="commit-divider" aria-hidden="true">→</span><span><small>HEAD</small><code id="head-sha"></code></span><span class="engine-label">Engine 0.1.1</span></section>
       <section id="metrics" class="metrics" aria-label="Report counts"></section>
       <section class="review-surface" aria-label="Findings review">
@@ -29,7 +45,7 @@
           <label class="search"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5"/></svg><input id="search" type="search" placeholder="Filter files or symbols…" aria-label="Search findings"><kbd>/</kbd></label>
           <div class="column-label">DOCUMENTATION</div><div id="findings-list"></div><div class="selection-hint">Changes are proposals.<br>Your repository is never modified here.</div>
         </div>
-        <article class="detail-column" id="detail"></article>
+        <article class="detail-column" id="detail" aria-label="Selected finding"></article>
       </section>
       <footer class="statusbar"><span><span class="privacy-dot"></span> Report viewer <span class="footer-slash">/</span> No repository writes</span><button class="text-button" id="scope-guide">About these checks</button></footer>
     </main>
