@@ -1,0 +1,72 @@
+{
+  "base": "074078e67b6a0df102e30dbc3b4140b0cc283f24",
+  "head": "f83fc6d38e851173185a13bf019b2ba968170849",
+  "index_hash": "09ae92f687dfca5f06b57ef4fd9fb83607177f92a05214ff9701670d4dacee0a",
+  "changes": [
+    {
+      "kind": "contract",
+      "unit": "api.py::fetch",
+      "path": "api.py",
+      "line": 1,
+      "before": {
+        "id": "api.py::fetch",
+        "path": "api.py",
+        "name": "fetch",
+        "kind": "function",
+        "line": 1,
+        "end_line": 2,
+        "source": "def fetch(url, timeout=30):\n    return url\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=30)\"}",
+        "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+        "facts": {
+          "signature": "fetch(url, timeout=30)",
+          "params": {
+            "url": null,
+            "timeout": "30"
+          },
+          "decorators": [],
+          "cli_names": []
+        }
+      },
+      "after": {
+        "id": "api.py::fetch",
+        "path": "api.py",
+        "name": "fetch",
+        "kind": "function",
+        "line": 1,
+        "end_line": 2,
+        "source": "def fetch(url, timeout=60):\n    return url\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=60)\"}",
+        "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+        "facts": {
+          "signature": "fetch(url, timeout=60)",
+          "params": {
+            "url": null,
+            "timeout": "60"
+          },
+          "decorators": [],
+          "cli_names": []
+        }
+      }
+    }
+  ],
+  "findings": [
+    {
+      "section_id": "README.md#api",
+      "path": "README.md",
+      "heading": "API",
+      "status": "accurate",
+      "reason": "Explicit documented signature/config literal matches the new contract; surrounding prose is not semantically certified",
+      "unit_ids": [
+        "api.py::fetch"
+      ],
+      "confidence": 1.0,
+      "evidence": "static"
+    }
+  ],
+  "edits": [],
+  "warnings": [
+    "Offline mode: behavioural and ambiguous changes are review findings, not LLM-verified decisions"
+  ],
+  "schema_version": 1
+}
