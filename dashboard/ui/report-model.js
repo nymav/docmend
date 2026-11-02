@@ -29,7 +29,7 @@ export function validateReport(raw) {
     path(e.path); text(e.section_id, 'section ID', 10000);
     text(e.before, 'original text'); text(e.after, 'replacement text');
     if (![e.start, e.end].every(Number.isSafeInteger) || e.start < 0 || e.end < e.start) throw new Error('Invalid edit range.');
-    if (e.before.split('\n').length - (e.before.endsWith('\n') ? 1 : 0) !== e.end - e.start) throw new Error('Edit text does not match its line range.');
+    if ((e.before ? e.before.split('\n').length - (e.before.endsWith('\n') ? 1 : 0) : 0) !== e.end - e.start) throw new Error('Edit text does not match its line range.');
     if (!/^[a-f0-9]{64}$/.test(e.file_hash)) throw new Error('Invalid edit file hash.');
   }
   for (const c of array(raw.changes, 'code changes')) {
