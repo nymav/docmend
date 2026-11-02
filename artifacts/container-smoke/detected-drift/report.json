@@ -1,0 +1,85 @@
+{
+  "base": "074078e67b6a0df102e30dbc3b4140b0cc283f24",
+  "head": "444efb8925a6177887c1f3b9e9bd333f6f280195",
+  "index_hash": "09c6118341341e30ecc3120119998b8257eeed72acc23c914bdbcb470c45b380",
+  "changes": [
+    {
+      "kind": "contract",
+      "unit": "api.py::fetch",
+      "path": "api.py",
+      "line": 1,
+      "before": {
+        "id": "api.py::fetch",
+        "path": "api.py",
+        "name": "fetch",
+        "kind": "function",
+        "line": 1,
+        "end_line": 2,
+        "source": "def fetch(url, timeout=30):\n    return url\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=30)\"}",
+        "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+        "facts": {
+          "signature": "fetch(url, timeout=30)",
+          "params": {
+            "url": null,
+            "timeout": "30"
+          },
+          "decorators": [],
+          "cli_names": []
+        }
+      },
+      "after": {
+        "id": "api.py::fetch",
+        "path": "api.py",
+        "name": "fetch",
+        "kind": "function",
+        "line": 1,
+        "end_line": 2,
+        "source": "def fetch(url, timeout=60):\n    return url\n",
+        "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=60)\"}",
+        "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+        "facts": {
+          "signature": "fetch(url, timeout=60)",
+          "params": {
+            "url": null,
+            "timeout": "60"
+          },
+          "decorators": [],
+          "cli_names": []
+        }
+      }
+    }
+  ],
+  "findings": [
+    {
+      "section_id": "README.md#api",
+      "path": "README.md",
+      "heading": "API",
+      "status": "stale",
+      "reason": "Documented call/default differs from the new AST contract",
+      "unit_ids": [
+        "api.py::fetch"
+      ],
+      "confidence": 1.0,
+      "evidence": "static"
+    }
+  ],
+  "edits": [
+    {
+      "section_id": "README.md#api",
+      "path": "README.md",
+      "start": 0,
+      "end": 3,
+      "before": "# API\n\nSignature: `fetch(url, timeout=30)`.\n",
+      "after": "# API\n\nSignature: `fetch(url, timeout=60)`.\n",
+      "file_hash": "9d76de945ef04414f71e7569214ba2b289faa2548d23c8a35765da2467ec26a4",
+      "mode": "safe",
+      "reason": "Documented call/default differs from the new AST contract",
+      "evidence": "static"
+    }
+  ],
+  "warnings": [
+    "Offline mode: behavioural and ambiguous changes are review findings, not LLM-verified decisions"
+  ],
+  "schema_version": 1
+}
