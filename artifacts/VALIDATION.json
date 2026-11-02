@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-02",
+  "version": "0.1.0",
+  "python_host": "3.9.6",
+  "unit_and_integration_tests": {
+    "passed": 51,
+    "failed": 0,
+    "host": true,
+    "container": true
+  },
+  "development_fixtures": {
+    "passed": 12,
+    "total": 12,
+    "independently_human_reviewed": false
+  },
+  "real_repository_integration": {
+    "source_repository": "/Users/yarra/Documents/Codex/2026-10-06/fix/work/docatlas-community",
+    "source_commit": "0688998769e3abaddaf828a8dd779d6905a064fc",
+    "actual_unit": "src/docatlas/evaluation.py::evaluate",
+    "changed_default": "k",
+    "default_before": 5,
+    "default_after": 6,
+    "synthetic_documentation": true,
+    "note": "Uses a real repository snapshot and one deliberately added documentation fixture; not a live GitHub fork or production evaluation.",
+    "base": "fa1e47ca0c7faf5c2fc7a4276ecf552ce9f33823",
+    "head": "47d640296631a0308cf5249c0b8f7192a07f2b8b",
+    "repaired": "47b9f2bf37c5093a5078e9c10a2badc9732b1b6e",
+    "before": {
+      "changed_units": 1,
+      "stale": 1,
+      "review": 1,
+      "accurate": 0,
+      "safe_edits": 1,
+      "draft_edits": 0,
+      "coverage_gaps": 0
+    },
+    "after": {
+      "changed_units": 1,
+      "stale": 0,
+      "review": 1,
+      "accurate": 1,
+      "safe_edits": 0,
+      "draft_edits": 0,
+      "coverage_gaps": 0
+    },
+    "applied": [
+      "docs/docmend-integration-fixture.md"
+    ]
+  },
+  "wheel": {
+    "file": "artifacts/dist/docmend-0.1.0-py3-none-any.whl",
+    "sha256": "919d6e21a863b211f47cea258e983964fed7f4242c80ed9b74b34354840a2100",
+    "installed_in_clean_venv": true,
+    "installed_cli_version": "0.1.0"
+  },
+  "docker": {
+    "build_passed": true,
+    "network_disabled_tests_passed": 51,
+    "read_only_source_mount": true,
+    "base_image": "python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30",
+    "action_drift_exit": 2,
+    "apply_exit": 0,
+    "action_after_repair_exit": 0,
+    "architecture": "linux/arm64"
+  },
+  "yaml_syntax": "action.yml, CI workflow and consumer template parsed successfully with Ruby YAML",
+  "live_github_writes_performed": false,
+  "paid_model_calls_performed": false,
+  "marketplace_published": false,
+  "release_status": "Validated local pilot; live provider, live GitHub and release publication gates remain"
+}
