@@ -1,0 +1,15 @@
+include = ["*.py", "*.md", "*.mdx", "*.toml"]
+exclude = ["tests/*", "*/tests/*", "*/test_*", ".venv/*", "node_modules/*", "vendor/*"]
+max_files = 2000
+max_sections = 100
+max_file_bytes = 500000
+max_total_bytes = 10000000
+similarity_threshold = 0.78
+# Optional: exact HTTPS provider endpoint (e.g. its /v1 prefix), explicit
+# model IDs supported by that provider. No provider is called in offline mode.
+# endpoint = "https://your-provider.example/v1"
+# model = "your-configured-model"
+# embedding_model = "your-configured-embedding-model"
+api_key_env = "DOCMEND_API_KEY"
+timeout_seconds = 30
+max_prompt_chars = 24000
