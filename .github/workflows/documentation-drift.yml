@@ -1,0 +1,72 @@
+name: Documentation drift
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Base commit or branch to compare
+        required: true
+        default: HEAD~1
+      head:
+        description: Head commit or branch to compare
+        required: true
+        default: HEAD
+permissions:
+  contents: read
+jobs:
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout target repository (data only)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout audited DocMend engine
+        uses: actions/checkout@v7
+        with:
+          ref: 461db9acd6d192c5a63a4b1fdfa10fcf75c43a8f
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Analyze committed code and documentation
+        env:
+          PYTHONPATH: ${{ github.workspace }}/engine/src
+          BASE_REF: ${{ github.event.pull_request.base.sha || inputs.base }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha || inputs.head }}
+        run: >-
+          python -m docmend.cli check --repo target
+          --base "$BASE_REF" --head "$HEAD_REF"
+          --output docmend-report --fail-on stale
+      - name: Add report to run summary
+        if: always()
+        run: |
+          if [ -f target/docmend-report/summary.md ]; then
+            cat target/docmend-report/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload findings and proposed patches
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation-report-${{ github.run_id }}
+          path: target/docmend-report/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Run reproducible demonstration
+        if: github.event_name == 'workflow_dispatch' && !cancelled()
+        env:
+          PYTHONPATH: ${{ github.workspace }}/engine/src
+        run: python engine/scripts/demo.py --output demo-results
+      - name: Upload before-and-after demonstration
+        if: github.event_name == 'workflow_dispatch' && !cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation-demo-${{ github.run_id }}
+          path: demo-results/
+          if-no-files-found: error
+          retention-days: 7
