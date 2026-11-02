@@ -1,0 +1,49 @@
+{
+  "version": "0.1.1",
+  "date": "2026-11-03",
+  "tests": 73,
+  "coverage": 0.9076923076923077,
+  "frozen_detector_commit": "4685e3ef788f3c2c225c56aec37622d4df57aca8",
+  "detector_unchanged_after_challenge": true,
+  "cases": {
+    "development": 28,
+    "challenge": 24,
+    "source-backed": 12
+  },
+  "release_gates": {
+    "development": {
+      "passed": true,
+      "checks": {
+        "no_incorrect_safe_repairs": true,
+        "no_operational_errors": true
+      },
+      "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+    },
+    "challenge": {
+      "passed": true,
+      "checks": {
+        "no_incorrect_safe_repairs": true,
+        "no_operational_errors": true
+      },
+      "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+    },
+    "source-backed": {
+      "passed": true,
+      "checks": {
+        "no_incorrect_safe_repairs": true,
+        "no_operational_errors": true
+      },
+      "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+    }
+  },
+  "wheel_sha256": "cf6713f5b93aaed019758088244c5f2bc49ddff475e59726690c5bb573141c64",
+  "live_provider_calls": 0,
+  "label_independent_human_review": false,
+  "docker_suite": {
+    "passed": 73,
+    "failed": 0,
+    "network": "none",
+    "source_mount": "read-only",
+    "image": "docmend:0.1.1"
+  }
+}
