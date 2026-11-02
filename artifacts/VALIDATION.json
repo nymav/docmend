@@ -1,7 +1,7 @@
 {
   "date": "2026-11-02",
   "version": "0.1.0",
-  "python_host": "3.9.6",
+  "python_host": "3.12.14",
   "unit_and_integration_tests": {
     "passed": 51,
     "failed": 0,
@@ -67,5 +67,6 @@
   "live_github_writes_performed": false,
   "paid_model_calls_performed": false,
   "marketplace_published": false,
-  "release_status": "Validated local pilot; live provider, live GitHub and release publication gates remain"
+  "release_status": "Validated local pilot; live provider, live GitHub and release publication gates remain",
+  "metadata_correction": "The original python_host value 3.9.6 was the metadata-writing system interpreter, not the test runner. Tests used the bundled Python 3.12.14, as recorded in the execution log."
 }
