@@ -37,8 +37,14 @@ jobs:
           python scripts/coverage_report.py
       - name: Docker image builds
         run: docker build -t docmend-ci .
+      - name: Container validation (read-only source, no network)
+        run: >-
+          docker run --rm --network none --read-only --tmpfs /tmp:rw
+          --mount type=bind,src=${{ github.workspace }},dst=/validation,readonly
+          --workdir /validation --entrypoint python docmend-ci
+          -m unittest discover -s tests -q
       - uses: actions/upload-artifact@v7
         with:
-          name: demo-python-${{ matrix.python }}
-          path: artifacts/demo/
+          name: validation-python-${{ matrix.python }}
+          path: artifacts/
           if-no-files-found: error
