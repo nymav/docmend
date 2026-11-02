@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Review documentation drift, trace code evidence and inspect proposed patches with DocMend.">
+  <title>DocMend · Review workspace</title>
+  <link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+  <aside class="rail">
+    <a class="brand" href="/" aria-label="DocMend home"><span class="brandmark" aria-hidden="true">d<span>m</span></span><strong>DocMend<span class="edition">REVIEW WORKSPACE</span></strong></a>
+    <div class="rail-section"><span class="eyebrow">WORKSPACE</span><div class="nav-current"><span aria-hidden="true">▤</span> Documentation review</div><button id="open-guide" class="nav-button"><span aria-hidden="true">?</span> How it works</button></div>
+    <div class="rail-section library"><div class="rail-heading"><span class="eyebrow">REPORT LIBRARY</span><span id="library-count">2</span></div><div id="run-list"></div><button class="rail-import" id="rail-import">+ Import a report</button></div>
+    <div class="rail-bottom"><span class="privacy-dot"></span> Files stay in this browser<span class="rail-footnote">No uploads. No GitHub key needed.</span><a href="https://github.com/nymav/docmend" target="_blank" rel="noopener noreferrer">Source & documentation</a></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span><span class="muted">Workspace</span><span class="crumb">/</span> Documentation review</span><span class="version">ENGINE 0.1.1 · OFFLINE REPORTS</span></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">CODE CHANGED. CHECK THE WORDS.</div><h1>Documentation review<span class="heading-period">.</span></h1><p>See what drifted, why it matters, and exactly what to change.</p></div><button id="import-button" class="primary">Import report <span aria-hidden="true">+</span></button><input type="file" id="file-input" accept=".json,application/json" multiple hidden></div>
+      <div id="message" role="status" aria-live="polite" hidden></div>
+      <section class="report-banner" aria-label="Current report"><div class="report-name"><span class="file-glyph" aria-hidden="true">▤</span><div><strong id="report-name"></strong><span id="report-origin"></span></div></div><div class="commit-pair"><span><small>BASE</small><code id="base-sha"></code></span><span class="commit-divider" aria-hidden="true">/</span><span><small>HEAD</small><code id="head-sha"></code></span></div><button id="raw-export" class="text-button">Export JSON</button></section>
+      <section id="metrics" class="metrics" aria-label="Report counts"></section>
+      <section class="review-surface" aria-label="Findings review">
+        <div class="surface-toolbar"><div class="surface-title"><h2>Findings</h2><span id="visible-count"></span></div><div class="filter-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Find a file or symbol" aria-label="Search findings"></label><label class="sr-only" for="status-filter">Finding status</label><select id="status-filter"><option value="all">All findings</option><option value="stale">Outdated</option><option value="review">Needs review</option><option value="accurate">Matches code</option></select></div></div>
+        <div class="review-columns"><div class="findings-column"><div class="column-label">DOCUMENT / SECTION</div><div id="findings-list"></div><p class="selection-hint">Select a finding to inspect its evidence.</p></div><article class="detail-column" id="detail"></article></div>
+      </section>
+      <section class="scope-note"><span class="scope-mark" aria-hidden="true">i</span><div><strong>Evidence, with boundaries.</strong> Static checks verify explicit signatures and values. They do not certify every sentence or explain every behavioural change. Review findings need a person.</div><button class="text-button" id="scope-guide">Read the workflow</button></section>
+      <footer><span>DOCMEND <span class="footer-slash">/</span> Documentation that follows the code.</span><span>Private workspace · Report viewer</span></footer>
+    </main>
+  </div>
+  <dialog id="guide"><div class="dialog-heading"><span class="eyebrow">THE WORKFLOW</span><button id="close-guide" class="icon-button" aria-label="Close guide">×</button></div><h2>From code change<br>to a reviewed correction.</h2><ol class="guide-steps"><li><strong>Run a check.</strong><p>In your repository, compare two committed versions with the DocMend CLI, or run Documentation drift in GitHub Actions.</p><pre>docmend check --repo /path/to/repo \
+  --base BASE_SHA --head HEAD_SHA</pre></li><li><strong>Open the report here.</strong><p>Import <code>report.json</code> from the output directory or downloaded Actions artifact. Your file is read locally and is not uploaded. Reports reset when you reload.</p></li><li><strong>Follow the evidence.</strong><p>Inspect the source contract, the diagnosis and the exact before-and-after text. "Matches code" refers to a checked declaration, not all surrounding prose.</p></li><li><strong>Review, then apply locally.</strong><p>Download a proposed patch, or use the CLI’s guarded apply command with the original report. This viewer never changes your repository or creates a pull request.</p><pre>docmend apply --repo /path/to/repo \
+  --report /path/to/report.json</pre></li></ol><a class="guide-link" href="https://github.com/nymav/docmend/actions/workflows/documentation-drift.yml" target="_blank" rel="noopener noreferrer">Open GitHub workflow</a></dialog>
+</body>
+</html>
