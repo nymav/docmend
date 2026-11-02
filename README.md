@@ -2,7 +2,7 @@
 
 Evidence-bound documentation maintenance for Python repositories. DocMend compares two immutable Git commits, maps changed code to Markdown sections, diagnoses drift and proposes narrowly scoped repairs. A Docker GitHub Action and an installable Python CLI expose the same modules.
 
-**Version 0.1.0 is a validated local pilot, not a live-production deployment.** See [validation and remaining release gates](docs/VALIDATION.md). The runtime has no third-party Python dependencies. Python 3.11+ and Git are required; local validation uses Python 3.12.
+**Version 0.1.1 is a validated local pilot, not a live-production deployment.** See [validation and remaining release gates](docs/VALIDATION.md). The runtime has no third-party Python dependencies. Python 3.11+ and Git are required; local validation uses Python 3.12.
 
 ## What happens when a default changes?
 
@@ -80,6 +80,15 @@ Forks are read-only. `pull_request_target` is refused. Do not run PR-controlled 
 - [Requirements matrix](docs/REQUIREMENTS.md): all 18 guide steps mapped to implementation, deliberate changes and pending release work.
 
 Supported semantic inputs: Python AST, module-level uppercase config assignments and TOML keys. Python function signatures, class schemas, endpoint decorators and common CLI decorators are inspected statically. Markdown/MDX section boundaries are fence-aware. Complex dynamic configuration, runtime-discovered APIs, arbitrary languages, semantic entailment of all prose and undocumented features are outside automatic-repair guarantees.
+
+## Expanded evaluation (0.1.1)
+
+[Full evaluation report](docs/EVALUATION.md): 73 passing tests, about 90.8% executable-line coverage, 28 development + 24 reserved challenge + 12 source-backed mutation cases. The expanded development set exposed three wrong automatic repairs; these were fixed before challenge scoring. On the challenge split, 8/14 stale sections were automatically confirmed and repaired, six were deferred, and all ten accurate sections were unchanged. Eleven sections in total needed review. These are constructed cases, not a human-reviewed real-world accuracy estimate.
+
+```sh
+PYTHONPATH=src python scripts/evaluate.py --split challenge --output artifacts/evaluation/challenge-v0.1.1
+PYTHONPATH=src python scripts/coverage_report.py
+```
 
 ## Validation
 
