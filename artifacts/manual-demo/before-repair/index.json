@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "units": [
+    {
+      "id": "api.py::fetch",
+      "path": "api.py",
+      "name": "fetch",
+      "kind": "function",
+      "line": 1,
+      "end_line": 2,
+      "source": "def fetch(url, timeout=60):\n    return url\n",
+      "contract": "{\"async\": false, \"decorators\": [], \"return\": null, \"signature\": \"fetch(url, timeout=60)\"}",
+      "semantic": "26a5c598cebcb90fbc6ac0ecf84e32deb90aaedd3ede96a0aed9d4e46dd268b7",
+      "facts": {
+        "signature": "fetch(url, timeout=60)",
+        "params": {
+          "url": null,
+          "timeout": "60"
+        },
+        "decorators": [],
+        "cli_names": []
+      }
+    }
+  ],
+  "sections": [
+    {
+      "id": "docs/docmend-integration-fixture.md#api",
+      "path": "docs/docmend-integration-fixture.md",
+      "heading": "API",
+      "start": 0,
+      "end": 3,
+      "text": "# API\n\nSignature: `fetch(url, timeout=30)`.\n",
+      "file_hash": "9d76de945ef04414f71e7569214ba2b289faa2548d23c8a35765da2467ec26a4"
+    }
+  ],
+  "links": [
+    {
+      "unit": "api.py::fetch",
+      "section": "docs/docmend-integration-fixture.md#api",
+      "method": "reference",
+      "score": 1.0
+    }
+  ],
+  "fingerprint": "5611a27cdae4975370553174d03b392523309039f275080f3076067ed3441069",
+  "changed_hunks": [
+    {
+      "path": "api.py",
+      "old_start": 1,
+      "old_count": 1,
+      "new_start": 1,
+      "new_count": 1
+    }
+  ],
+  "git_diff_sha256": "01f6b06e056676ccf3ac37d47a8dc31d675953028123977d93b2628539c5238f"
+}
