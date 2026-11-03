@@ -13,12 +13,13 @@ from .models import DocMendError
 class GitStore:
     def __init__(self, root: Path):
         self.root = root.resolve()
+        self.budget = None
         self.run("rev-parse", "--show-toplevel")
 
     def run(self, *args: str) -> bytes:
         env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_CONFIG_NOSYSTEM="1")
         try:
-            result = subprocess.run(["git", "-c", "safe.directory=" + str(self.root), "--no-pager", *args], cwd=self.root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, check=False)
+            result = subprocess.run(["git", "-c", "safe.directory=" + str(self.root), "--no-pager", *args], cwd=self.root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=min(30, self.budget.remaining()) if self.budget else 30, check=False)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise DocMendError("Git operation unavailable or timed out") from exc
         if result.returncode:
@@ -68,6 +69,14 @@ class GitStore:
             for match in re.finditer(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", patch, re.M):
                 hunks.append({"path": path, "old_start": int(match[1]), "old_count": int(match[2] or 1), "new_start": int(match[3]), "new_count": int(match[4] or 1)})
         return "".join(patches), hunks
+
+    def uncovered_sources(self, base: str, head: str, cfg: Config) -> list[str]:
+        from dataclasses import replace
+        from .adapters import SUPPORTED_SUFFIXES
+        eligible = replace(cfg, include=("*",))
+        paths = self.run("diff", "--name-only", "-z", "--no-renames", base, head, "--").split(b"\0")
+        extensions = ('.py','.toml','.json','.js','.jsx','.ts','.tsx','.go','.rs','.java','.yaml','.yml')
+        return sorted(path for raw in paths if raw for path in [raw.decode('utf-8')] if eligible.accepts(path) and path.endswith(extensions) and (not cfg.accepts(path) or not path.endswith(SUPPORTED_SUFFIXES)))
 
     def trusted_config(self, base: str, path: str = ".docmend.toml") -> Config:
         try:
