@@ -1,0 +1,155 @@
+{
+  "version": "0.3.0",
+  "scope": "offline validation only",
+  "python": "3.12.14",
+  "python_tests": 97,
+  "dashboard_tests": 12,
+  "source_sha256": "405c57cacebe3b23df3a24999cd750666e1212b172436669cd4ffea9e65b8f46",
+  "evaluations": {
+    "development": {
+      "dataset_sha256": "fdb833a9e999b5b27605fb4d7da048e6d707fbde33ab9bfd83b3347f1d03d504",
+      "gate": {
+        "passed": true,
+        "checks": {
+          "no_incorrect_safe_repairs": true,
+          "no_operational_errors": true
+        },
+        "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+      },
+      "metrics": {
+        "sections": 28,
+        "positive_sections": 16,
+        "negative_sections": 12,
+        "tp": 11,
+        "fp": 0,
+        "fn": 5,
+        "tn": 12,
+        "confirmed_precision": 1.0,
+        "confirmed_recall": 0.6875,
+        "precision_wilson_95": [
+          0.7411670330319684,
+          1
+        ],
+        "recall_wilson_95": [
+          0.44404355834740666,
+          0.8583535614521796
+        ],
+        "triage_recall": 1.0,
+        "review_sections": 10,
+        "review_rate": 0.35714285714285715,
+        "decision_coverage": 0.6428571428571429,
+        "selective_accuracy": 1.0,
+        "proposed_safe_repairs": 11,
+        "correct_repairs": 11,
+        "incorrect_repairs": 0,
+        "repair_exact_match": 1.0,
+        "repair_wilson_95": [
+          0.7411670330319684,
+          1
+        ],
+        "negative_section_preservation": 1.0,
+        "operational_error_sections": 0,
+        "latency_ms_median": 0.12766651343554258,
+        "latency_ms_p95": 0.2171671949326992
+      }
+    },
+    "challenge": {
+      "dataset_sha256": "76ad6eca41f6b55c3fc327e6137204624be2dc2750a50fae65a3ec96e27f8eab",
+      "gate": {
+        "passed": true,
+        "checks": {
+          "no_incorrect_safe_repairs": true,
+          "no_operational_errors": true
+        },
+        "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+      },
+      "metrics": {
+        "sections": 24,
+        "positive_sections": 14,
+        "negative_sections": 10,
+        "tp": 8,
+        "fp": 0,
+        "fn": 6,
+        "tn": 10,
+        "confirmed_precision": 1.0,
+        "confirmed_recall": 0.5714285714285714,
+        "precision_wilson_95": [
+          0.6755924351161198,
+          1
+        ],
+        "recall_wilson_95": [
+          0.3259064457965074,
+          0.7861920109552588
+        ],
+        "triage_recall": 1.0,
+        "review_sections": 11,
+        "review_rate": 0.4583333333333333,
+        "decision_coverage": 0.5416666666666666,
+        "selective_accuracy": 1.0,
+        "proposed_safe_repairs": 8,
+        "correct_repairs": 8,
+        "incorrect_repairs": 0,
+        "repair_exact_match": 1.0,
+        "repair_wilson_95": [
+          0.6755924351161198,
+          1
+        ],
+        "negative_section_preservation": 1.0,
+        "operational_error_sections": 0,
+        "latency_ms_median": 0.1449589617550373,
+        "latency_ms_p95": 0.2348329871892929
+      }
+    },
+    "source": {
+      "dataset_sha256": "d3e1372502f602893ed492b519ce93464378156d2fd2ef42fe6dbe263e8a172a",
+      "gate": {
+        "passed": true,
+        "checks": {
+          "no_incorrect_safe_repairs": true,
+          "no_operational_errors": true
+        },
+        "policy": "Zero observed incorrect safe repairs and operational errors on these fixtures. Unit regressions separately enforce basic useful repairs. This gate is not a statistical guarantee."
+      },
+      "metrics": {
+        "sections": 12,
+        "positive_sections": 6,
+        "negative_sections": 6,
+        "tp": 3,
+        "fp": 0,
+        "fn": 3,
+        "tn": 6,
+        "confirmed_precision": 1.0,
+        "confirmed_recall": 0.5,
+        "precision_wilson_95": [
+          0.4385029682449546,
+          1
+        ],
+        "recall_wilson_95": [
+          0.1876163064826506,
+          0.8123836935173494
+        ],
+        "triage_recall": 1.0,
+        "review_sections": 3,
+        "review_rate": 0.25,
+        "decision_coverage": 0.75,
+        "selective_accuracy": 1.0,
+        "proposed_safe_repairs": 3,
+        "correct_repairs": 3,
+        "incorrect_repairs": 0,
+        "repair_exact_match": 1.0,
+        "repair_wilson_95": [
+          0.4385029682449546,
+          1
+        ],
+        "negative_section_preservation": 1.0,
+        "operational_error_sections": 0,
+        "latency_ms_median": 0.8338125189766288,
+        "latency_ms_p95": 1.4245409984141588
+      }
+    }
+  },
+  "live_provider": "not run: no credentials",
+  "github_app_live": "not run: no installation token",
+  "human_reviewed_benchmark": "not run: no reviewed dataset",
+  "historical_queue": "prepared locally with blank labels; not scored as reviewed evidence"
+}
