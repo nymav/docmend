@@ -28,6 +28,8 @@ def run():
     repo=Path(os.environ.get('GITHUB_WORKSPACE','.')).resolve()
     out=os.environ.get('INPUT_OUTPUT','docmend-report')
     fail=os.environ.get('INPUT_FAIL-ON','review')
+    if fail not in ('review','stale','never'):raise ValueError('fail-on must be review, stale, or never')
+    if '\n' in out or '\r' in out:raise ValueError('output path must be one line')
     args=['check','--repo',str(repo),'--base',base,'--head',head,'--output',out,'--fail-on',fail]
     if llm or semantic:
         # The committed config may name only this fixed action-secret environment.
@@ -43,6 +45,7 @@ def run():
         if '\n' in out or '\r' in out:raise ValueError('output path must be one line')
         with open(output,'a') as f:
             f.write('report='+out+'/report.json\n')
+            f.write('sarif='+out+'/report.sarif\n')
             for name,value in [('stale',sum(x['status']=='stale' for x in report['findings'])),('review',sum(x['status']=='review' for x in report['findings'])),('safe-edits',sum(x['mode']=='safe' for x in report['edits']))]:f.write(f'{name}={value}\n')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:f.write((repo/out/'summary.md').read_text())
