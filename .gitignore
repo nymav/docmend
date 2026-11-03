@@ -7,3 +7,5 @@ dist/
 .docmend/
 .docmend-apply.lock
 docmend-report/
+
+.docmend-recovery.json
