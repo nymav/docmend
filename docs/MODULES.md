@@ -35,3 +35,15 @@ flowchart LR
 ```
 
 A finding marked `accurate` by the static rule means the explicit declaration matches the new contract. It is not a certification of every sentence in the section. A `review` finding is unresolved evidence, not a confirmed stale diagnosis. Unmapped changed symbols produce coverage warnings rather than a false clean bill of health.
+
+## Enhancement modules added in 0.3.0
+
+| Module | Contract |
+|---|---|
+| `adapters` | Opt-in JSON configuration to immutable, one-based inclusive `CodeUnit` spans and canonical JSON contracts; reject duplicates/nonfinite values |
+| `benchmark` | Immutable historical snapshots to blank review queue; score only complete, agreeing reviewer declarations with gold repairs and positive/negative cases |
+| `recovery` | Private durable original-file journal to explicit, conflict-aware rollback after all writers stop |
+| `budget` | Monotonic deadline shared by Git/provider and CPU-stage checkpoints |
+| `operations` | Bounded read-only GitHub App installation repository-access check; never claims write-permission validation |
+
+The CLI adds `recover`; reports add SARIF source regions; index operations expose measured elapsed time and provider attempts. See [implementation status and commands](ENHANCEMENT-MODULES.md).
