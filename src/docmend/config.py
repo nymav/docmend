@@ -24,6 +24,8 @@ class Config:
     api_key_env: str = "DOCMEND_API_KEY"
     timeout_seconds: int = 30
     max_prompt_chars: int = 24000
+    analysis_timeout_seconds: int = 120
+    max_provider_requests: int = 50
 
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
@@ -46,7 +48,7 @@ class Config:
                     raise DocMendError(f"{key} must be a list of strings")
                 values[key] = tuple(values[key])
         cfg = cls(**values)
-        for key, upper in [("max_files", 10000), ("max_file_bytes", 2_000_000), ("max_total_bytes", 50_000_000), ("max_sections", 500), ("timeout_seconds", 120), ("max_prompt_chars", 100000)]:
+        for key, upper in [("max_files", 10000), ("max_file_bytes", 2_000_000), ("max_total_bytes", 50_000_000), ("max_sections", 500), ("timeout_seconds", 120), ("max_prompt_chars", 100000), ("analysis_timeout_seconds", 900), ("max_provider_requests", 500)]:
             val = getattr(cfg, key)
             if type(val) is not int or not 1 <= val <= upper:
                 raise DocMendError(f"{key} must be between 1 and {upper}")
