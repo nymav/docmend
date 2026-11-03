@@ -14,10 +14,13 @@ from .reporting import markdown
 
 
 class GitHub:
-    def __init__(self, repository: str, token: str):
+    def __init__(self, repository: str, token: str, *, bot_login: str = "github-actions[bot]"):
         import re
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or not token:
             raise DocMendError("Expected owner/repository and a GitHub token")
+        if not re.fullmatch(r"[A-Za-z0-9_-]+\[bot\]", bot_login):
+            raise DocMendError("Expected the publishing App bot login")
+        self.bot_login = bot_login
         self.repository = repository
         self.token = token
         self.opener = build_opener(NoRedirect())
@@ -43,7 +46,7 @@ class GitHub:
             if not isinstance(comments, list):
                 raise DocMendError("Invalid comments response")
             for comment in comments:
-                if comment.get("body", "").startswith("<!-- docmend-summary:v1 -->") and comment.get("user", {}).get("type") == "Bot":
+                if comment.get("body", "").startswith("<!-- docmend-summary:v1 -->") and comment.get("user", {}).get("type") == "Bot" and comment.get("user", {}).get("login") == self.bot_login:
                     return self.request("PATCH", f"/issues/comments/{int(comment['id'])}", {"body": body})["html_url"]
             if len(comments) < 100:
                 break
@@ -51,14 +54,18 @@ class GitHub:
             raise DocMendError("Comment scan limit exceeded; refusing a duplicate summary")
         return self.request("POST", f"/issues/{number}/comments", {"body": body})["html_url"]
 
-    def publish(self, number: int, report: Report, files: dict[str, str], *, include_drafts: bool = False) -> dict:
-        if type(number) is not int or number < 1:
-            raise DocMendError("Invalid PR number")
+    def verify_source(self, number: int, report: Report) -> dict:
         pull = self.request("GET", f"/pulls/{number}")
         if pull.get("state") != "open" or pull.get("head", {}).get("repo", {}).get("full_name") != self.repository or pull.get("base", {}).get("repo", {}).get("full_name") != self.repository:
             raise DocMendError("Publishing requires an open, same-repository PR; forks are read-only")
         if pull["head"]["sha"] != report.head or pull["base"]["sha"] != report.base:
             raise DocMendError("PR changed since analysis; recompute before publishing")
+        return pull
+
+    def publish(self, number: int, report: Report, files: dict[str, str], *, include_drafts: bool = False) -> dict:
+        if type(number) is not int or number < 1:
+            raise DocMendError("Invalid PR number")
+        pull = self.verify_source(number, report)
         updated = patched_files(files, report.edits, include_drafts=include_drafts)
         result = {"fix_pr": None, "summary": None}
         if updated:
@@ -75,10 +82,9 @@ class GitHub:
             else:
                 commit = self.request("POST", "/git/commits", {"message": f"docs: repair explicit drift for PR #{number}", "tree": tree["sha"], "parents": [report.head]})
                 # Recheck head immediately before exposing the branch/PR.
-                live = self.request("GET", f"/pulls/{number}")
-                if live["head"]["sha"] != report.head or live["base"]["sha"] != report.base:
-                    raise DocMendError("PR changed during publish; Git objects remain unreferenced")
+                self.verify_source(number, report)
                 self.request("POST", "/git/refs", {"ref": "refs/heads/" + branch, "sha": commit["sha"]})
+            self.verify_source(number, report)
             query = urlencode({"state": "open", "head": self.repository.split('/')[0] + ":" + branch, "base": pull["head"]["ref"]})
             existing_prs = self.request("GET", "/pulls?" + query)
             if existing_prs:
@@ -89,5 +95,6 @@ class GitHub:
         body = markdown(report)
         if result["fix_pr"]:
             body += "\nRepair draft PR: " + result["fix_pr"] + "\n"
+        self.verify_source(number, report)
         result["summary"] = self.comment(number, body)
         return result
