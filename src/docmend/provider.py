@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 
 from .config import Config
 from .models import DocMendError
+from .budget import Budget
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -18,7 +19,7 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 class ModelProvider:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, *, budget: Budget | None = None):
         if not cfg.endpoint or not cfg.model:
             raise DocMendError("An explicit HTTPS endpoint and model are required for LLM mode")
         # Validate even when constructed directly by library callers.
@@ -27,6 +28,8 @@ class ModelProvider:
         if u.scheme != "https" or not u.hostname or u.username or u.password or u.query or u.fragment:
             raise DocMendError("Invalid provider endpoint")
         self.cfg = cfg
+        self.budget = budget or Budget(cfg.analysis_timeout_seconds)
+        self.request_count = 0
         self.key = os.environ.get(cfg.api_key_env, "")
         if not self.key:
             raise DocMendError(f"Set {cfg.api_key_env} before selecting LLM mode")
@@ -38,18 +41,26 @@ class ModelProvider:
             raise DocMendError("Provider request exceeds the configured size budget")
         request = Request(self.cfg.endpoint.rstrip("/") + route, data=raw, method="POST", headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.key})
         for attempt in range(3):
+            remaining = self.budget.remaining()
+            if self.request_count >= self.cfg.max_provider_requests:
+                raise DocMendError("Provider request budget exhausted")
+            self.request_count += 1
             try:
-                with self.opener.open(request, timeout=self.cfg.timeout_seconds) as response:
+                with self.opener.open(request, timeout=min(self.cfg.timeout_seconds, remaining)) as response:
                     body = response.read(2_000_001)
                     if len(body) > 2_000_000:
                         raise DocMendError("Provider response exceeds size limit")
                     value = json.loads(body)
                     if not isinstance(value, dict):
                         raise DocMendError("Expected a provider JSON object")
+                    self.budget.remaining()
                     return value
             except HTTPError as exc:
                 if exc.code in (429, 502, 503, 504) and attempt < 2:
-                    time.sleep(2**attempt)
+                    delay = 2**attempt
+                    if delay >= self.budget.remaining():
+                        raise DocMendError("Provider retry exceeds remaining runtime budget")
+                    time.sleep(delay)
                     continue
                 # Never echo response bodies, request headers or credentials.
                 raise DocMendError(f"Provider HTTP {exc.code}; request failed closed") from exc
