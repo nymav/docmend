@@ -2,11 +2,15 @@ name: Documentation drift
 on:
   pull_request:
     paths: ['**.py', '**.md', '**.mdx', '**.toml']
+concurrency:
+  group: docmend-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -16,7 +20,7 @@ jobs:
       - name: Check documentation
         # For production, replace the version with an audited full commit SHA.
         # Never use './' to execute PR-controlled action code with credentials.
-        uses: nymav/docmend@v0.2.0
+        uses: nymav/docmend@v0.3.0
         with:
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
