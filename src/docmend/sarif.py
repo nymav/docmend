@@ -4,7 +4,8 @@ from pathlib import PurePosixPath
 from .models import Report, digest
 
 
-def sarif(report: Report) -> dict:
+def sarif(report: Report, sections: list[dict] | None = None) -> dict:
+    spans = {s["id"]: s for s in (sections or [])}
     results = []
     for finding in report.findings:
         if finding.status not in ('stale', 'review'):
@@ -12,12 +13,15 @@ def sarif(report: Report) -> dict:
         path = PurePosixPath(finding.path)
         if path.is_absolute() or '..' in path.parts or '\\' in finding.path:
             raise ValueError('SARIF paths must be repository-relative')
+        physical = {'artifactLocation': {'uri': quote(finding.path, safe='/'), 'uriBaseId': '%SRCROOT%'}}
+        span = spans.get(finding.section_id)
+        if span and span['path'] == finding.path and type(span['start']) is int and type(span['end']) is int and 0 <= span['start'] < span['end']:
+            physical['region'] = {'startLine': span['start'] + 1, 'endLine': span['end']}
         results.append({
             'ruleId': 'docmend/' + finding.status,
             'level': 'error' if finding.status == 'stale' else 'warning',
             'message': {'text': finding.heading + ': ' + finding.reason},
-            'locations': [{'physicalLocation': {'artifactLocation': {
-                'uri': quote(finding.path, safe='/'), 'uriBaseId': '%SRCROOT%'}}}],
+            'locations': [{'physicalLocation': physical}],
             'partialFingerprints': {'docmendSection/v1': digest(finding.section_id + ':' + finding.status)},
             'properties': {'evidence': finding.evidence, 'requiresHumanReview': True},
         })
