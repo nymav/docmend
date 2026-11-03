@@ -34,6 +34,14 @@ def wilson(successes,total):
     return [max(0,center-radius),min(1,center+radius)]
 
 
+def case_config(case):
+    patterns=case.get('analysis_patterns')
+    if patterns is None:return Config()
+    if not isinstance(patterns,dict) or set(patterns)!={'include','exclude'}:
+        raise DocMendError('Benchmark analysis patterns must contain include and exclude only')
+    return Config.from_text('include = '+json.dumps(patterns['include'])+'\nexclude = '+json.dumps(patterns['exclude']))
+
+
 def load_cases(path: Path):
     result=[];ids=set();fingerprints=set()
     for number,line in enumerate(path.read_text().splitlines(),1):
@@ -44,7 +52,7 @@ def load_cases(path: Path):
             raise DocMendError('Missing/duplicate case identifier')
         for key in ('before','after','gold_files'):
             if not isinstance(c.get(key),dict) or not all(isinstance(k,str) and isinstance(v,str) for k,v in c[key].items()):raise DocMendError('Case file maps must contain text')
-        cfg=Config();after={p:t for p,t in c['after'].items() if cfg.accepts(p)};sections=parse_docs(after)
+        cfg=case_config(c);after={p:t for p,t in c['after'].items() if cfg.accepts(p)};sections=parse_docs(after)
         available={(s.path,s.heading) for s in sections.values()}
         labels=c.get('labels')
         if not isinstance(labels,list) or not labels:raise DocMendError('Each case needs explicit section labels')
@@ -67,16 +75,16 @@ def assert_disjoint(left,right):
 
 def predict(case,method):
     if method not in METHODS:raise DocMendError('Unknown evaluation method')
-    cfg=Config();before={p:t for p,t in case['before'].items() if cfg.accepts(p)};after={p:t for p,t in case['after'].items() if cfg.accepts(p)}
+    cfg=case_config(case);before={p:t for p,t in case['before'].items() if cfg.accepts(p)};after={p:t for p,t in case['after'].items() if cfg.accepts(p)}
     sections=parse_docs(after)
     if method=='docmend':
-        report,index=analyze_files(before,after)
+        report,index=analyze_files(before,after,cfg=cfg)
         states={s.id:'none' for s in sections.values()};states.update({f.section_id:f.status for f in report.findings})
         return states,report.edits,patched_files(after,report.edits),report.warnings
     old,new=parse_code(before),parse_code(after)
     changed=classify(old,new)
     if method=='changed-file':
-        any_code_change=any(before.get(p)!=after.get(p) for p in before.keys()|after.keys() if p.endswith(('.py','.toml')))
+        any_code_change=any(before.get(p)!=after.get(p) for p in before.keys()|after.keys() if p.endswith(('.py','.toml','.json')))
         return {s.id:'stale' if any_code_change else 'none' for s in sections.values()},[],{},[]
     linked=set()
     old_docs=parse_docs(before)
@@ -108,7 +116,7 @@ def evaluate(cases,*,repeats=3):
     for method in METHODS:
         outcomes=[];latencies=[]
         for c in cases:
-            cfg=Config();after={p:t for p,t in c['after'].items() if cfg.accepts(p)};sections=parse_docs(after)
+            cfg=case_config(c);after={p:t for p,t in c['after'].items() if cfg.accepts(p)};sections=parse_docs(after)
             truth={(x['path'],x['heading']):x for x in c['labels']}
             gold_sections=parse_docs({p:t for p,t in c['gold_files'].items() if p.endswith(('.md','.mdx'))})
             gold_by_key={(s.path,s.heading):s.text for s in gold_sections.values()}
