@@ -32,6 +32,8 @@ inputs:
     description: 'review, stale, or never'
     default: review
 outputs:
+  sarif:
+    description: Path to SARIF 2.1.0 report (upload separately with security-events write permission)
   report:
     description: Path to JSON report
   stale:
