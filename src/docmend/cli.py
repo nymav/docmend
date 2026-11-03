@@ -15,6 +15,7 @@ from .github import GitHub
 from .models import DocMendError, Edit
 from .pipeline import analyze_repository
 from .repair import apply_local
+from .recovery import recover_local
 from .reporting import save, summary
 
 
@@ -36,6 +37,9 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--repository", required=True)
             sub.add_argument("--pr", type=int, required=True)
             sub.add_argument("--include-drafts", action="store_true")
+    recovery = subs.add_parser("recover")
+    recovery.add_argument("--repo", type=Path, default=Path.cwd())
+    recovery.add_argument("--confirm-no-active-writer", action="store_true")
     sub = subs.add_parser("apply")
     sub.add_argument("--repo", type=Path, default=Path.cwd())
     sub.add_argument("--report", type=Path, required=True)
@@ -47,6 +51,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         store = GitStore(args.repo)
+        if args.command == "recover":
+            print(json.dumps({"recovered": recover_local(store.root, confirm_no_active_writer=args.confirm_no_active_writer)}))
+            return 0
         if args.command == "apply":
             raw = json.loads(args.report.read_text())
             if raw.get("schema_version") != 1:
@@ -66,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         save(store.root, args.output, report, graph, files)
         if args.command == "publish":
             token = os.environ.get("DOCMEND_GITHUB_TOKEN", "")
-            value = GitHub(args.repository, token).publish(args.pr, report, files, include_drafts=args.include_drafts)
+            value = GitHub(args.repository, token, bot_login=os.environ.get("DOCMEND_BOT_LOGIN", "github-actions[bot]")).publish(args.pr, report, files, include_drafts=args.include_drafts)
             print(json.dumps(value))
             return 0
         counts = summary(report)
