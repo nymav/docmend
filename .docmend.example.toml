@@ -13,3 +13,10 @@ similarity_threshold = 0.78
 api_key_env = "DOCMEND_API_KEY"
 timeout_seconds = 30
 max_prompt_chars = 24000
+
+# Cooperative deadline for analysis and bounded provider request attempts.
+# A workflow timeout remains the hard process-level bound.
+analysis_timeout_seconds = 120
+max_provider_requests = 50
+# To analyze JSON config, add "*.json" to include above. Keep report/build
+# directories excluded to avoid treating generated artifacts as source config.
