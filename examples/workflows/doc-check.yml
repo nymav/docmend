@@ -14,9 +14,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Check documentation
-        # Replace OWNER/DOCMEND and pin the audited action's full commit SHA.
+        # For production, replace the version with an audited full commit SHA.
         # Never use './' to execute PR-controlled action code with credentials.
-        uses: OWNER/DOCMEND@REPLACE_WITH_AUDITED_COMMIT_SHA
+        uses: nymav/docmend@v0.2.0
         with:
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
