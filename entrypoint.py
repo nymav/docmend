@@ -16,7 +16,9 @@ def truth(name):
 def run():
     event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
     pr=event.get('pull_request',{})
-    fork=bool(pr.get('head',{}).get('repo',{}).get('fork'))
+    head_repo=pr.get('head',{}).get('repo',{})
+    base_repo=pr.get('base',{}).get('repo',{})
+    fork=bool(head_repo.get('fork')) or bool(head_repo.get('full_name') and base_repo.get('full_name') and head_repo['full_name']!=base_repo['full_name'])
     llm,semantic,publish=truth('LLM'),truth('SEMANTIC'),truth('PUBLISH')
     if os.environ.get('GITHUB_EVENT_NAME')=='pull_request_target':
         raise ValueError('pull_request_target is intentionally unsupported')
@@ -51,6 +53,7 @@ def run():
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:f.write((repo/out/'summary.md').read_text())
     if publish:
         if not pr.get('number'):raise ValueError('publish requires a PR event')
+        os.environ['DOCMEND_BOT_LOGIN']=os.environ.get('INPUT_BOT-LOGIN','github-actions[bot]')
         os.environ['DOCMEND_GITHUB_TOKEN']=os.environ.get('INPUT_GITHUB-TOKEN','')
         args=['publish','--repo',str(repo),'--base',base,'--head',head,'--output',out,'--repository',os.environ['GITHUB_REPOSITORY'],'--pr',str(pr['number'])]
         if llm:args+=['--llm']
