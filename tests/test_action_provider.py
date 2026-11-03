@@ -69,3 +69,10 @@ class ActionTests(unittest.TestCase):
             with patch.dict(os.environ,env,clear=True),patch.object(entry,'main') as main:
                 with self.assertRaises(ValueError):entry.run()
                 main.assert_not_called()
+    def test_repository_identity_fork_detection(self):
+        with tempfile.TemporaryDirectory() as td:
+            event=Path(td)/'event.json'
+            event.write_text(json.dumps({'pull_request':{'head':{'repo':{'full_name':'other/fork','fork':False}},'base':{'repo':{'full_name':'owner/repo'}}}}))
+            with patch.dict(os.environ,{'GITHUB_EVENT_PATH':str(event),'INPUT_PUBLISH':'true'},clear=True),patch.object(entry,'main') as main:
+                with self.assertRaises(ValueError):entry.run()
+                main.assert_not_called()
