@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 
 from .models import Report
+from .sarif import sarif
 from .repair import atomic_write, patched_files, safe_path
 
 
@@ -42,8 +43,8 @@ def unified_patch(files: dict[str, str], report: Report, *, drafts: bool = False
 def save(root: Path, directory: str, report: Report, index: dict, files: dict[str, str]) -> None:
     output = safe_path(root, directory)
     # Ensure existing children are not symlinks before any writes.
-    targets = {name: safe_path(root, str(Path(directory) / name)) for name in ["report.json", "summary.md", "index.json", "safe.patch", "draft.patch"]}
+    targets = {name: safe_path(root, str(Path(directory) / name)) for name in ["report.sarif", "report.json", "summary.md", "index.json", "safe.patch", "draft.patch"]}
     output.mkdir(parents=True, exist_ok=True)
-    values = {"report.json": report.to_json(), "summary.md": markdown(report), "index.json": json.dumps(index, indent=2, ensure_ascii=False) + "\n", "safe.patch": unified_patch(files, report), "draft.patch": unified_patch(files, report, drafts=True)}
+    values = {"report.sarif": json.dumps(sarif(report), indent=2) + "\n", "report.json": report.to_json(), "summary.md": markdown(report), "index.json": json.dumps(index, indent=2, ensure_ascii=False) + "\n", "safe.patch": unified_patch(files, report), "draft.patch": unified_patch(files, report, drafts=True)}
     for name, text in values.items():
         atomic_write(targets[name], text)
