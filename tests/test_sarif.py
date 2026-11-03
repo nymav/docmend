@@ -17,3 +17,7 @@ class SarifTests(unittest.TestCase):
     def test_unsafe_paths(self):
         for path in ('../secret','/etc/passwd','docs\\secret'):
             with self.assertRaises(ValueError):sarif(self.report(path))
+    def test_source_regions_use_actual_section_spans(self):
+        report=self.report()
+        result=sarif(report,[{'id':'section','path':'docs/a b.md','start':3,'end':7}])['runs'][0]['results'][0]
+        self.assertEqual(result['locations'][0]['physicalLocation']['region'],{'startLine':4,'endLine':7})
