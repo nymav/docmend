@@ -58,3 +58,14 @@ class ActionTests(unittest.TestCase):
             env={'GITHUB_EVENT_PATH':str(event),'GITHUB_WORKSPACE':td,'GITHUB_OUTPUT':str(root/'output.txt'),'GITHUB_STEP_SUMMARY':str(root/'summary.md')}
             with patch.dict(os.environ,env,clear=True),patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(entry.run(),2)
             self.assertIn('safe-edits=1',(root/'output.txt').read_text());self.assertIn('DocMend',(root/'summary.md').read_text())
+    def test_invalid_inputs_fail_before_analysis(self):
+        with tempfile.TemporaryDirectory() as td:
+            event=Path(td)/'event.json';event.write_text('{}')
+            env={'GITHUB_EVENT_PATH':str(event),'INPUT_BASE':'base','INPUT_FAIL-ON':'ignore'}
+            with patch.dict(os.environ,env,clear=True),patch.object(entry,'main') as main:
+                with self.assertRaises(ValueError):entry.run()
+                main.assert_not_called()
+            env.update({'INPUT_FAIL-ON':'review','INPUT_OUTPUT':'report\ninjected=value'})
+            with patch.dict(os.environ,env,clear=True),patch.object(entry,'main') as main:
+                with self.assertRaises(ValueError):entry.run()
+                main.assert_not_called()
