@@ -2,7 +2,7 @@
 
 Evidence-bound documentation maintenance for Python repositories. DocMend compares two immutable Git commits, maps changed code to Markdown sections, diagnoses drift and proposes narrowly scoped repairs. A Docker GitHub Action and an installable Python CLI expose the same modules.
 
-**Version 0.1.1 is a validated local pilot, not a live-production deployment.** See [validation and remaining release gates](docs/VALIDATION.md). The runtime has no third-party Python dependencies. Python 3.11+ and Git are required; local validation uses Python 3.12.
+**Version 0.2.0 is a prerelease pilot, not a production certification.** See [validation and remaining release gates](docs/VALIDATION.md). The runtime has no third-party Python dependencies. Python 3.11+ and Git are required; local validation uses Python 3.12.
 
 ## What happens when a default changes?
 
@@ -67,7 +67,7 @@ Explicit symbol mapping works offline. Semantic mapping requires real vectors; t
 
 ## GitHub integration
 
-[Action metadata](action.yml), [Dockerfile](Dockerfile) and [consumer workflow template](examples/workflows/doc-check.yml) are included. The consumer must replace the action repository and pin an audited commit SHA after publishing. The template uses read-only PR analysis and uploads the report.
+[Action metadata](action.yml), [Dockerfile](Dockerfile) and [consumer workflow template](examples/workflows/doc-check.yml) are included. The consumer template uses `nymav/docmend@v0.2.0`; pin an audited full commit SHA for production. The template uses read-only PR analysis and uploads the report.
 
 Publishing is **off by default**. It requires an explicitly supplied write token and an open, same-repository PR whose base/head SHAs still match. It creates a separate draft PR **into the source feature branch**, avoiding inclusion of unrelated feature changes in a docs PR against main. Reruns verify the existing branch tree and parent rather than force-pushing. Summary comments are updated when a bot-owned marker is found. PAT-authored comments are not treated as bot comments; use a GitHub App/Actions token for stable comment upserts.
 
@@ -101,3 +101,9 @@ python -m pip wheel --no-deps --no-build-isolation --wheel-dir artifacts/dist .
 CI includes Python 3.11/3.12/3.13 and a Docker build. Those remote jobs are configured, not asserted to have run locally. The pinned-base Docker image built successfully and the full suite passed inside it with networking disabled; the actual Action entrypoint was also smoke-tested locally. No external GitHub writes, model requests or Marketplace publication were performed.
 
 MIT licensed. Source requirement: BASWE, *15 AI Engineering Projects That Actually Land Jobs*, Project 4, pages 11–13. The guide itself is not bundled or relicensed in this code repository.
+
+## 0.2.0 release improvements
+
+Every analysis now writes `report.sarif` alongside existing artifacts. The Action exposes its path as `outputs.sarif`. Confirmed stale sections are errors; unresolved reviews are warnings, and analysis limits remain visible. Uploading to code scanning is optional and requires separate `security-events: write` permission. SARIF does not imply security vulnerability detection.
+
+See [the seven enhancement modules and remaining gates](docs/ENHANCEMENT-MODULES.md). Action inputs reject invalid gate values and multiline output paths before analysis. Live-provider and independently annotated real-world evaluation remain pending.
