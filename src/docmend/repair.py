@@ -8,6 +8,7 @@ import re
 import tempfile
 
 from .docparse import headings
+from .recovery import JOURNAL, write_journal, clear_journal, sync_directory
 from .models import DocMendError, Edit, digest
 
 
@@ -88,6 +89,7 @@ def atomic_write(path: Path, text: str) -> None:
         if path.exists():
             os.chmod(temp, path.stat().st_mode & 0o777)
         os.replace(temp, path)
+        sync_directory(path.parent)
     finally:
         if os.path.exists(temp):
             os.unlink(temp)
@@ -95,6 +97,8 @@ def atomic_write(path: Path, text: str) -> None:
 
 def apply_local(root: Path, edits: list[Edit], *, include_drafts: bool = False) -> list[str]:
     root = root.resolve()
+    if (root / JOURNAL).exists() or (root / JOURNAL).is_symlink():
+        raise DocMendError("Unresolved repair journal; run explicit recovery before another apply")
     lock = root / ".docmend-apply.lock"
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -102,6 +106,7 @@ def apply_local(root: Path, edits: list[Edit], *, include_drafts: bool = False) 
         raise DocMendError("Another repair is active, or a stale lock needs inspection") from exc
     originals = {}
     written = []
+    journal_ready = False
     try:
         os.close(fd)
         selected = [e for e in edits if e.mode == "safe" or include_drafts]
@@ -111,20 +116,29 @@ def apply_local(root: Path, edits: list[Edit], *, include_drafts: bool = False) 
                 raise DocMendError(f"Missing repair file: {edit.path}")
             originals[edit.path] = path.read_bytes().decode("utf-8")
         replacements = patched_files(originals, selected, include_drafts=include_drafts)
+        if replacements:
+            write_journal(root, originals, replacements)
+            journal_ready = True
         for name, value in replacements.items():
             path = safe_path(root, name)
             # Detect changes after preflight, before committing each file.
             if path.read_bytes().decode("utf-8") != originals[name]:
                 raise DocMendError("Documentation changed during apply")
-            atomic_write(path, value)
             written.append(name)
+            atomic_write(path, value)
+        if journal_ready:
+            clear_journal(root)
         return written
     except Exception:
         for name in reversed(written):
             path = safe_path(root, name)
-            if path.read_bytes().decode("utf-8") != replacements[name]:
+            current = path.read_bytes().decode("utf-8")
+            if current not in (replacements[name], originals[name]):
                 raise DocMendError("Concurrent edit detected during rollback; manual recovery required")
-            atomic_write(path, originals[name])
+            if current != originals[name]:
+                atomic_write(path, originals[name])
+        if journal_ready:
+            clear_journal(root)
         raise
     finally:
         lock.unlink(missing_ok=True)
