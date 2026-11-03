@@ -25,6 +25,9 @@ inputs:
   publish:
     description: Explicit same-repository PR publishing; never merges
     default: 'false'
+  bot-login:
+    description: Publishing GitHub App bot login, used to identify summaries owned by this app
+    default: github-actions[bot]
   github-token:
     description: Write-scoped token only when publish is explicitly enabled
     required: false
