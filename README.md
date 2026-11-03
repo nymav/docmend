@@ -2,7 +2,7 @@
 
 Evidence-bound documentation maintenance for Python repositories. DocMend compares two immutable Git commits, maps changed code to Markdown sections, diagnoses drift and proposes narrowly scoped repairs. A Docker GitHub Action and an installable Python CLI expose the same modules.
 
-**Version 0.2.0 is a prerelease pilot, not a production certification.** See [validation and remaining release gates](docs/VALIDATION.md). The runtime has no third-party Python dependencies. Python 3.11+ and Git are required; local validation uses Python 3.12.
+**Version 0.3.0 is a prerelease pilot, not a production certification.** See [validation and remaining release gates](docs/VALIDATION.md). The runtime has no third-party Python dependencies. Python 3.11+ and Git are required; local validation uses Python 3.12.
 
 ## What happens when a default changes?
 
@@ -46,7 +46,7 @@ The base and head commits must exist locally. The analysis uses Git blobs, not u
 
 Use `--repo` on every command when analyzing another checkout. `--output` is repository-relative, default `.docmend/report`. Paths escaping the repository and symlink outputs are refused. Exit codes: **0** = no blocking finding, **2** = drift/review/coverage finding, **3** = operational error. `check --fail-on stale` blocks only confirmed staleness; `--fail-on never` writes a report without gating CI. Neither option turns an operational failure into success.
 
-`apply` refuses stale reports, modified documentation and forged “safe” edits that cannot be reproduced from code facts. If the process crashes, inspect `.docmend-apply.lock` and the diff before removing a stale lock. Writes are atomic per file, with rollback on ordinary write failure; they are not a cross-filesystem transaction.
+`apply` refuses stale reports, modified documentation and forged “safe” edits that cannot be reproduced from code facts. Repairs now persist a private `.docmend-recovery.json` journal before writing. If interrupted, stop all writers and run `docmend recover --repo REPO --confirm-no-active-writer`. Recovery refuses conflicting user edits and preserves the journal. Writes are atomic per file, with rollback; this is not an atomic multi-file transaction.
 
 ## Modules
 
@@ -67,7 +67,7 @@ Explicit symbol mapping works offline. Semantic mapping requires real vectors; t
 
 ## GitHub integration
 
-[Action metadata](action.yml), [Dockerfile](Dockerfile) and [consumer workflow template](examples/workflows/doc-check.yml) are included. The consumer template uses `nymav/docmend@v0.2.0`; pin an audited full commit SHA for production. The template uses read-only PR analysis and uploads the report.
+[Action metadata](action.yml), [Dockerfile](Dockerfile) and [consumer workflow template](examples/workflows/doc-check.yml) are included. The consumer template uses `nymav/docmend@v0.3.0`; pin an audited full commit SHA for production. The template uses read-only PR analysis and uploads the report.
 
 Publishing is **off by default**. It requires an explicitly supplied write token and an open, same-repository PR whose base/head SHAs still match. It creates a separate draft PR **into the source feature branch**, avoiding inclusion of unrelated feature changes in a docs PR against main. Reruns verify the existing branch tree and parent rather than force-pushing. Summary comments are updated when a bot-owned marker is found. PAT-authored comments are not treated as bot comments; use a GitHub App/Actions token for stable comment upserts.
 
@@ -107,3 +107,9 @@ MIT licensed. Source requirement: BASWE, *15 AI Engineering Projects That Actual
 Every analysis now writes `report.sarif` alongside existing artifacts. The Action exposes its path as `outputs.sarif`. Confirmed stale sections are errors; unresolved reviews are warnings, and analysis limits remain visible. Uploading to code scanning is optional and requires separate `security-events: write` permission. SARIF does not imply security vulnerability detection.
 
 See [the seven enhancement modules and remaining gates](docs/ENHANCEMENT-MODULES.md). Action inputs reject invalid gate values and multiline output paths before analysis. Live-provider and independently annotated real-world evaluation remain pending.
+
+## 0.3.0 — seven-module implementation
+
+Opt-in JSON configuration analysis, real source regions in SARIF, independent-review dataset preparation/scoring, durable crash recovery, PR lifecycle/race guards, App-owned comment matching, runtime/request budgets and explicit live compatibility probes are implemented. See [module contracts, commands and deferred external evidence](docs/ENHANCEMENT-MODULES.md). Python/TOML remain default inputs; JSON requires trusted include patterns. Unsupported changed source is reported as incomplete coverage.
+
+`index.json.operations` records elapsed analysis time and provider attempts. Live API credentials and human-reviewed cases are not available, so those external validation gates remain unrun.
