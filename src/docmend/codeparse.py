@@ -6,6 +6,7 @@ import json
 import tomllib
 
 from .models import CodeUnit, DocMendError, digest
+from .adapters import parse_json
 
 
 def _literal(node: ast.AST | None) -> str | None:
@@ -90,6 +91,8 @@ def parse_code(files: dict[str, str]) -> dict[str, CodeUnit]:
     for path, text in sorted(files.items()):
         if path.endswith(".py"):
             units.extend(parse_python(path, text))
+        elif path.endswith(".json"):
+            units.extend(parse_json(path, text))
         elif path.endswith(".toml") and not path.endswith(".docmend.toml"):
             units.extend(parse_toml(path, text))
     ids = [unit.id for unit in units]
