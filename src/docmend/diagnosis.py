@@ -96,6 +96,10 @@ def context(section: Section, changes: list[Change]) -> dict[str, Any]:
 
 def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False, provider: ModelProvider | None = None) -> tuple[Finding, Edit | None]:
     ids = sorted(c.unit.id for c in changes)
+    if any(u and u.kind == "ambiguous" for c in changes for u in (c.before, c.after)):
+        return Finding(section.id, section.path, section.heading, "review",
+            "Repeated definition or member of a repeated class; active binding requires human review and no repair is generated",
+            ids), None
     # Multiple changes are evaluated jointly by a model or human, never chained
     # into a misleadingly high-confidence deterministic repair.
     if len(changes) == 1 and not ambiguous and not (changes[0].before and changes[0].after and changes[0].before.kind == "function" and changes[0].before.semantic != changes[0].after.semantic):
