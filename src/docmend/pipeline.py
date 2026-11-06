@@ -20,7 +20,7 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
     cfg = cfg or Config()
     budget = budget or Budget(cfg.analysis_timeout_seconds)
     budget.remaining()
-    old_units, new_units = parse_code(before), parse_code(after)
+    old_units, new_units = parse_code(before, review_duplicates=True), parse_code(after, review_duplicates=True)
     budget.remaining()
     old_docs, new_docs = parse_docs(before), parse_docs(after)
     old_index = build_index(old_units, old_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold)
@@ -28,6 +28,9 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
     budget.remaining()
     changes = classify(old_units, new_units)
     report = Report(base, head, new_index["fingerprint"], [{"kind": c.kind, "unit": c.unit.id, "path": c.unit.path, "line": c.unit.line, "before": asdict(c.before) if c.before else None, "after": asdict(c.after) if c.after else None} for c in changes])
+    ambiguous_units = {u.id for u in [*old_units.values(), *new_units.values()] if u.kind == "ambiguous"}
+    for unit_id in sorted(ambiguous_units):
+        report.warnings.append(f"No documentation mapping certainty for repeated definition {unit_id}; active binding is not inferred and coverage is incomplete")
     for path in sorted(before.keys() | after.keys()):
         if before.get(path) != after.get(path) and not path.endswith(SUPPORTED_SUFFIXES):
             report.warnings.append(f"No documentation mapping: unsupported changed source {path}; coverage is incomplete")
