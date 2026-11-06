@@ -81,6 +81,14 @@ Forks are read-only. `pull_request_target` is refused. Do not run PR-controlled 
 
 Supported semantic inputs: Python AST, module-level uppercase config assignments and TOML keys. Python function signatures, class schemas, endpoint decorators and common CLI decorators are inspected statically. Markdown/MDX section boundaries are fence-aware. Complex dynamic configuration, runtime-discovered APIs, arbitrary languages, semantic entailment of all prose and undocumented features are outside automatic-repair guarantees.
 
+Repeated Python definitions and reassigned uppercase names are retained as ambiguous
+evidence rather than aborting a repository scan. Members of repeated classes are
+also ambiguous. Reports explicitly mark this coverage gap; affected documentation
+requires human review and receives no automatic or model-generated repair. Unrelated
+symbols remain analyzable. Strict review gates still fail on these coverage gaps;
+report-only workflows can finish and upload the evidence. Invalid source syntax
+remains an operational error.
+
 ## Expanded evaluation (0.1.1)
 
 [Full evaluation report](docs/EVALUATION.md): 73 passing tests, about 90.8% executable-line coverage, 28 development + 24 reserved challenge + 12 source-backed mutation cases. The expanded development set exposed three wrong automatic repairs; these were fixed before challenge scoring. On the challenge split, 8/14 stale sections were automatically confirmed and repaired, six were deferred, and all ten accurate sections were unchanged. Eleven sections in total needed review. These are constructed cases, not a human-reviewed real-world accuracy estimate.
