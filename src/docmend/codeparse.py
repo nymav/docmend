@@ -86,7 +86,7 @@ def parse_toml(path: str, text: str) -> list[CodeUnit]:
     return units
 
 
-def parse_code(files: dict[str, str]) -> dict[str, CodeUnit]:
+def parse_code(files: dict[str, str], *, review_duplicates: bool = False) -> dict[str, CodeUnit]:
     units = []
     for path, text in sorted(files.items()):
         if path.endswith(".py"):
@@ -95,7 +95,25 @@ def parse_code(files: dict[str, str]) -> dict[str, CodeUnit]:
             units.extend(parse_json(path, text))
         elif path.endswith(".toml") and not path.endswith(".docmend.toml"):
             units.extend(parse_toml(path, text))
-    ids = [unit.id for unit in units]
-    if len(ids) != len(set(ids)):
+    groups: dict[str, list[CodeUnit]] = {}
+    for unit in units:
+        groups.setdefault(unit.id, []).append(unit)
+    duplicates = {key for key, group in groups.items() if len(group) > 1}
+    if duplicates and not review_duplicates:
         raise DocMendError("Duplicate code-unit definitions are ambiguous; disambiguate before analysis")
-    return {unit.id: unit for unit in units}
+    # Never select a presumed runtime binding. Keep every definition as evidence
+    # under one ambiguous unit, including methods of repeated class definitions.
+    repeated_classes = {u.id for u in units if u.id in duplicates and u.kind == "class"}
+    result = {}
+    for key, group in groups.items():
+        if key in duplicates or any(key.startswith(parent + ".") for parent in repeated_classes):
+            first = group[0]
+            contract = json.dumps([u.contract for u in group])
+            semantic = digest(json.dumps([u.semantic for u in group]))
+            result[key] = CodeUnit(key, first.path, first.name, "ambiguous", first.line,
+                max(u.end_line for u in group), "\n\n".join(u.source for u in group),
+                contract, semantic, {"definition_lines": [u.line for u in group],
+                "reason": "Repeated definition or member of a repeated class; active binding is not inferred"})
+        else:
+            result[key] = group[0]
+    return result
