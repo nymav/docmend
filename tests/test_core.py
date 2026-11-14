@@ -190,3 +190,16 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class ShortNameLinkTests(unittest.TestCase):
+    def test_common_name_in_prose_does_not_link(self):
+        units=parse_code({'a.py':'def run(x=1):\n    return x\n'})
+        self.assertFalse(build_index(units,parse_docs({'a.md':'# Setup\nRun the tests, then run again.\n'}))['links'])
+    def test_common_name_in_code_links(self):
+        units=parse_code({'a.py':'def run(x=1):\n    return x\n'})
+        self.assertEqual(len(build_index(units,parse_docs({'a.md':'# Setup\nCall `run(x=1)`.\n'}))['links']),1)
+    def test_qualified_name_links_in_prose(self):
+        units=parse_code({'a.py':'class Job:\n    def run(self):\n        return 1\n'})
+        links=build_index(units,parse_docs({'a.md':'# Jobs\nJob.run starts work.\n'}))['links']
+        self.assertIn('a.py::Job.run',[l['unit'] for l in links])
