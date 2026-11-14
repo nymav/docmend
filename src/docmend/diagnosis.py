@@ -42,7 +42,7 @@ def _declared_fact(text: str, offset: int, heading: str = "") -> bool:
 
 def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
     old, new = change.before, change.after
-    if change.kind != "contract" or old is None or new is None or old.kind != new.kind:
+    if change.kind not in ("contract", "renamed") or old is None or new is None or old.kind != new.kind:
         return None
     replacements = []
     reasons = []
@@ -55,6 +55,8 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
             # a call to this specific function. Narrative paraphrases stay review-only.
             if snippet == old.facts["signature"]:
                 result = new.facts["signature"]
+            elif change.kind == "renamed":
+                continue  # Renames only rewrite an exact documented signature.
             elif re.match(r"^" + re.escape(old.name.rsplit(".", 1)[-1]) + r"\(", snippet):
                 try:
                     call = ast.parse(snippet, mode="eval").body
@@ -139,6 +141,9 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
     reason = "Changed code is linked to this section; semantic accuracy requires review"
     if ambiguous:
         reason += "; the short symbol name is ambiguous across source units"
+    for c in changes:
+        if c.kind == "renamed":
+            reason += f"; {c.before.name} appears to be renamed to {c.after.name} (identical body)"
     if any(c.kind in ("added", "removed") for c in changes):
         reason += "; feature addition/removal is not auto-rewritten"
     return Finding(section.id, section.path, section.heading, "review", reason, ids), None

@@ -39,10 +39,13 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
         linked[edge["unit"]].add(edge["section"])
     suspects = defaultdict(list)
     for change in changes:
-        for sid in linked[change.unit.id]:
+        # A renamed unit is documented under its old name, its new name, or both.
+        ids = {u.id for u in (change.before, change.after) if u}
+        sections = set().union(*(linked[i] for i in ids))
+        for sid in sorted(sections):
             if sid in new_docs:
                 suspects[sid].append(change)
-        if not linked[change.unit.id]:
+        if not sections:
             report.warnings.append(f"No documentation mapping for changed unit {change.unit.id}; coverage is incomplete")
     if len(suspects) > cfg.max_sections:
         raise DocMendError("Suspect-section budget exceeded; narrow the include/exclude patterns")

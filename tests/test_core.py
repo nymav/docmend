@@ -190,3 +190,20 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class RenameTests(unittest.TestCase):
+    OLD={'api.py':'def fetch(url, timeout=30):\n    return url\n','docs/api.md':'# API\n\nSignature: `fetch(url, timeout=30)`.\n\n## Other\nUntouched.\n'}
+    def test_rename_pairs_and_repairs_signature(self):
+        new={**self.OLD,'api.py':'def download(url, timeout=30):\n    return url\n'}
+        r,_=analyze_files(self.OLD,new)
+        self.assertEqual([c['kind'] for c in r.changes],['renamed'])
+        self.assertEqual(r.edits[0].mode,'safe');self.assertIn('`download(url, timeout=30)`',r.edits[0].after)
+    def test_prose_mention_gets_rename_hint(self):
+        old={**self.OLD,'docs/api.md':'# API\n\nUse fetch for downloads.\n'}
+        r,_=analyze_files(old,{**old,'api.py':'def download(url, timeout=30):\n    return url\n'})
+        self.assertFalse(r.edits);self.assertIn('renamed to download',r.findings[0].reason)
+    def test_ambiguous_bodies_not_paired(self):
+        old={'a.py':'def a():\n    pass\ndef b():\n    pass\n'}
+        r,_=analyze_files(old,{'a.py':'def c():\n    pass\ndef d():\n    pass\n'})
+        self.assertNotIn('renamed',[c['kind'] for c in r.changes])
