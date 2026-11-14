@@ -11,6 +11,32 @@ class Embedder(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
+class CachingEmbedder:
+    """Embeds each distinct text once per run.
+
+    Base and head snapshots share most code and docs, so without this the
+    same text is sent to the provider twice (or more, for duplicates).
+    Vectors are keyed by content digest and never written to disk.
+    """
+
+    def __init__(self, inner: Embedder):
+        self.inner = inner
+        self.vectors: dict[str, list[float]] = {}
+        self.texts_sent = 0
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        keys = [digest(t) for t in texts]
+        missing = list(dict.fromkeys(k for k in keys if k not in self.vectors))
+        if missing:
+            by_key = dict(zip(keys, texts))
+            fresh = self.inner.embed([by_key[k] for k in missing])
+            if len(fresh) != len(missing):
+                raise DocMendError("Embedding response count mismatch")
+            self.vectors.update(zip(missing, fresh))
+            self.texts_sent += len(missing)
+        return [self.vectors[k] for k in keys]
+
+
 def cosine(left: list[float], right: list[float]) -> float:
     if not left or len(left) != len(right) or any(not math.isfinite(v) for v in left + right):
         raise DocMendError("Invalid embedding dimensions or values")

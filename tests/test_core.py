@@ -190,3 +190,20 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class EmbeddingCacheTests(unittest.TestCase):
+    def test_each_distinct_text_embedded_once(self):
+        sent=[]
+        class Fake:
+            def embed(self,texts):sent.extend(texts);return [[1.,float(len(t))] for t in texts]
+        _,idx=analyze_files(BEFORE,AFTER,semantic=True,embedder=Fake())
+        self.assertEqual(len(sent),len(set(sent)))
+        units_and_docs=4+3  # fetch before/after differ; docs identical across snapshots
+        self.assertLess(len(sent),2*units_and_docs);self.assertEqual(idx['operations']['embedded_texts'],len(sent))
+    def test_results_match_uncached(self):
+        from docmend.mapping import CachingEmbedder
+        class Fake:
+            def embed(self,texts):return [[1.,float(len(t))] for t in texts]
+        texts=['a','bb','a','ccc','bb']
+        self.assertEqual(CachingEmbedder(Fake()).embed(texts),Fake().embed(texts))
