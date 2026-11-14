@@ -190,3 +190,20 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class DocstringTests(unittest.TestCase):
+    SRC='def fetch(url, timeout={}):\n    """Fetch a URL.\n\n    Default: `fetch(url, timeout=30)`.\n    """\n    return {}\n'
+    def test_off_by_default(self):
+        b={'api.py':self.SRC.format(30,'url')}
+        r,_=analyze_files(b,{'api.py':self.SRC.format(60,'url')})
+        self.assertFalse(r.findings)
+    def test_signature_change_flags_docstring_without_edit(self):
+        b={'api.py':self.SRC.format(30,'url')}
+        r,_=analyze_files(b,{'api.py':self.SRC.format(60,'url')},cfg=Config(docstrings=True))
+        self.assertEqual([f.section_id for f in r.findings],['api.py::fetch#docstring']);self.assertFalse(r.edits)
+        self.assertIn('by hand',r.findings[0].reason)
+    def test_body_change_does_not_flag_docstring(self):
+        b={'api.py':self.SRC.format(30,'url')}
+        r,_=analyze_files(b,{'api.py':self.SRC.format(30,'url + "/"')},cfg=Config(docstrings=True))
+        self.assertFalse(r.findings)

@@ -20,3 +20,5 @@ analysis_timeout_seconds = 120
 max_provider_requests = 50
 # To analyze JSON config, add "*.json" to include above. Keep report/build
 # directories excluded to avoid treating generated artifacts as source config.
+# Also report stale function/class docstrings on signature changes (never edited).
+docstrings = false

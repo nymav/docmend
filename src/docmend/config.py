@@ -26,6 +26,9 @@ class Config:
     max_prompt_chars: int = 24000
     analysis_timeout_seconds: int = 120
     max_provider_requests: int = 50
+    # Also check function/class docstrings when a signature changes. Docstring
+    # findings are review/stale reports only; DocMend never edits .py files.
+    docstrings: bool = False
 
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
@@ -54,6 +57,8 @@ class Config:
                 raise DocMendError(f"{key} must be between 1 and {upper}")
         if not isinstance(cfg.similarity_threshold, (float, int)) or not math.isfinite(cfg.similarity_threshold) or not 0 <= cfg.similarity_threshold <= 1:
             raise DocMendError("similarity_threshold must be a finite number in [0,1]")
+        if type(cfg.docstrings) is not bool:
+            raise DocMendError("docstrings must be true or false")
         for key in ("endpoint", "model", "embedding_model", "api_key_env"):
             if not isinstance(getattr(cfg, key), str):
                 raise DocMendError(f"{key} must be a string")
