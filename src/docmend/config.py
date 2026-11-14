@@ -26,6 +26,9 @@ class Config:
     max_prompt_chars: int = 24000
     analysis_timeout_seconds: int = 120
     max_provider_requests: int = 50
+    # Monorepo package folders. Docs inside a scope only link to code in the
+    # same scope; docs outside every scope (e.g. root README) link anywhere.
+    scopes: tuple[str, ...] = ()
 
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
@@ -42,7 +45,7 @@ class Config:
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise DocMendError(f"Unknown config keys: {', '.join(sorted(unknown))}")
-        for key in ("include", "exclude"):
+        for key in ("include", "exclude", "scopes"):
             if key in values:
                 if not isinstance(values[key], list) or not all(isinstance(x, str) for x in values[key]):
                     raise DocMendError(f"{key} must be a list of strings")
@@ -54,6 +57,10 @@ class Config:
                 raise DocMendError(f"{key} must be between 1 and {upper}")
         if not isinstance(cfg.similarity_threshold, (float, int)) or not math.isfinite(cfg.similarity_threshold) or not 0 <= cfg.similarity_threshold <= 1:
             raise DocMendError("similarity_threshold must be a finite number in [0,1]")
+        for scope in cfg.scopes:
+            p = PurePosixPath(scope)
+            if not scope or p.is_absolute() or ".." in p.parts or "\\" in scope or any(c in scope for c in "*?["):
+                raise DocMendError("scopes must be plain repository-relative folders")
         for key in ("endpoint", "model", "embedding_model", "api_key_env"):
             if not isinstance(getattr(cfg, key), str):
                 raise DocMendError(f"{key} must be a string")
