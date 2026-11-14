@@ -1,4 +1,4 @@
-import { validateReport, counts, filterFindings, lineDiff, makePatch, MAX_BYTES } from '/report-model.js';
+import { validateReport, counts, filterFindings, lineDiff, makePatch, trend, MAX_BYTES } from '/report-model.js';
 const $ = s => document.querySelector(s);
 const state = { reports: [], active: 0, selected: null, query: '', status: 'all' };
 const labels = { stale: 'Outdated', review: 'Needs review', accurate: 'Matches code' };
@@ -31,6 +31,24 @@ function renderLibrary() {
     b.append(el('small', '', `${entry.sample ? 'EXAMPLE' : 'YOUR FILE'} · ${c.stale} outdated · ${c.review} review`));
     b.addEventListener('click', () => setReport(i)); $('#run-list').append(b);
   });
+  renderTrends();
+}
+function renderTrends() {
+  const mine = state.reports.filter(e => !e.sample);
+  $('#trends').hidden = mine.length < 2;
+  if (mine.length < 2) return;
+  const t = trend(mine);
+  const peak = Math.max(1, ...t.rows.map(r => r.stale + r.review));
+  $('#trend-rows').replaceChildren(...t.rows.map(r => {
+    const row = el('div', 'trend-row'), bar = el('span', 'trend-bar');
+    bar.style.width = Math.round(100 * (r.stale + r.review) / peak) + '%';
+    row.title = `${r.name}: ${r.stale} outdated, ${r.review} needs review`;
+    row.append(el('span', 'trend-name', r.name), bar, el('span', 'trend-count', `${r.stale}/${r.review}`));
+    return row;
+  }));
+  $('#hotspots').replaceChildren(...(t.hotspots.length ? t.hotspots.map(h => {
+    const li = el('li', '', `${h.path}: ${h.heading}`); li.append(el('small', '', ` · ${h.times} reports`)); return li;
+  }) : [el('li', 'muted', 'No section flagged in more than one report.')]));
 }
 function render() {
   if (!current()) return;
