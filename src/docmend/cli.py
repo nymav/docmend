@@ -23,7 +23,7 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="docmend", description="Detect documentation drift without executing repository code")
     p.add_argument("--version", action="version", version=__version__)
     subs = p.add_subparsers(dest="command", required=True)
-    for command in ("index", "check", "publish"):
+    for command in ("index", "check", "publish", "baseline"):
         sub = subs.add_parser(command)
         sub.add_argument("--repo", type=Path, default=Path.cwd())
         sub.add_argument("--base", required=True)
@@ -70,6 +70,16 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"applied": written}))
             return 0
         report, graph, files = analyze_repository(store, args.base, args.head, llm=args.llm, semantic=args.semantic)
+        if args.command == "baseline":
+            from .repair import atomic_write, safe_path
+            target = safe_path(store.root, ".docmend-baseline.json")
+            existing = json.loads(target.read_text()) if target.is_file() else {"version": 1, "acknowledged": []}
+            known = {(e["section_id"], e["fingerprint"]) for e in existing.get("acknowledged", [])}
+            added = [{"section_id": f.section_id, "fingerprint": f.fingerprint, "heading": f.heading, "acknowledged_at": report.head} for f in report.findings if f.status == "review" and (f.section_id, f.fingerprint) not in known]
+            existing["acknowledged"] = existing.get("acknowledged", []) + added
+            atomic_write(target, json.dumps(existing, indent=2, ensure_ascii=False) + "\n")
+            print(json.dumps({"baseline": ".docmend-baseline.json", "added": len(added), "note": "Commit this file; it applies once it is in the base branch"}))
+            return 0
         save(store.root, args.output, report, graph, files)
         if args.command == "publish":
             token = os.environ.get("DOCMEND_GITHUB_TOKEN", "")

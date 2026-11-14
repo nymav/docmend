@@ -8,7 +8,7 @@ def sarif(report: Report, sections: list[dict] | None = None) -> dict:
     spans = {s["id"]: s for s in (sections or [])}
     results = []
     for finding in report.findings:
-        if finding.status not in ('stale', 'review'):
+        if finding.status not in ('stale', 'review') or finding.acknowledged:
             continue
         path = PurePosixPath(finding.path)
         if path.is_absolute() or '..' in path.parts or '\\' in finding.path:

@@ -16,7 +16,31 @@ from .provider import ModelProvider
 from .repair import validate_edit
 
 
-def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = "fixture-base", head: str = "fixture-head", cfg: Config | None = None, provider: ModelProvider | None = None, semantic: bool = False, embedder=None, budget: Budget | None = None) -> tuple[Report, dict]:
+def finding_fingerprint(section, group) -> str:
+    import json
+    from .models import digest
+    facts = sorted([c.kind, c.unit.id, c.after.contract if c.after else None, c.after.semantic if c.after else None] for c in group)
+    return digest(json.dumps([section.id, digest(section.text), facts]))
+
+
+def load_baseline(text: str | None) -> set[tuple[str, str]]:
+    """Parse .docmend-baseline.json into (section_id, fingerprint) pairs."""
+    import json
+    if not text:
+        return set()
+    try:
+        raw = json.loads(text)
+        if raw.get("version") != 1 or not isinstance(raw.get("acknowledged"), list):
+            raise ValueError()
+        pairs = {(e["section_id"], e["fingerprint"]) for e in raw["acknowledged"]}
+        if not all(isinstance(a, str) and isinstance(b, str) for a, b in pairs):
+            raise ValueError()
+        return pairs
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        raise DocMendError("Invalid .docmend-baseline.json") from exc
+
+
+def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = "fixture-base", head: str = "fixture-head", cfg: Config | None = None, provider: ModelProvider | None = None, semantic: bool = False, embedder=None, budget: Budget | None = None, baseline: set[tuple[str, str]] | None = None) -> tuple[Report, dict]:
     cfg = cfg or Config()
     budget = budget or Budget(cfg.analysis_timeout_seconds)
     budget.remaining()
@@ -59,6 +83,9 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
                 finding.status = "review"
                 finding.reason += f"; correction rejected: {exc}"
                 edit = None
+        finding.fingerprint = finding_fingerprint(new_docs[sid], group)
+        # Only review findings can be acknowledged; confirmed drift never is.
+        finding.acknowledged = finding.status == "review" and (sid, finding.fingerprint) in (baseline or set())
         report.findings.append(finding)
         if edit:
             report.edits.append(edit)
@@ -79,7 +106,13 @@ def analyze_repository(store: GitStore, base_ref: str, head_ref: str, *, cfg: Co
     store.budget = budget
     provider = ModelProvider(cfg, budget=budget) if llm or semantic else None
     before, after = store.snapshot(base, cfg), store.snapshot(head, cfg)
-    report, index = analyze_files(before, after, base=base, head=head, cfg=cfg, provider=provider if llm else None, semantic=semantic, embedder=provider, budget=budget)
+    # Like config, the baseline comes from the trusted base commit, so a PR
+    # cannot acknowledge its own review findings.
+    try:
+        baseline_text = store.run("show", f"{base}:.docmend-baseline.json").decode()
+    except DocMendError:
+        baseline_text = None
+    report, index = analyze_files(before, after, base=base, head=head, cfg=cfg, provider=provider if llm else None, semantic=semantic, embedder=provider, budget=budget, baseline=load_baseline(baseline_text))
     for path in store.uncovered_sources(base, head, cfg):
         warning = f"No documentation mapping: changed source {path} is outside configured adapters/includes; coverage is incomplete"
         if not any(path in w for w in report.warnings): report.warnings.append(warning)

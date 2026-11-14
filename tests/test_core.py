@@ -190,3 +190,34 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class BaselineTests(unittest.TestCase):
+    REVIEW={**AFTER,'api.py':'def fetch(url, timeout=60):\n    return "changed"\n'}
+    def test_baseline_acknowledges_exact_review_only(self):
+        from docmend.pipeline import load_baseline
+        r,_=analyze_files(BEFORE,self.REVIEW);f=r.findings[0];self.assertEqual(f.status,'review')
+        pairs=load_baseline(json.dumps({'version':1,'acknowledged':[{'section_id':f.section_id,'fingerprint':f.fingerprint}]}))
+        r2,_=analyze_files(BEFORE,self.REVIEW,baseline=pairs);self.assertTrue(r2.findings[0].acknowledged)
+        changed={**self.REVIEW,'api.py':'def fetch(url, timeout=60):\n    return "again"\n'}
+        r3,_=analyze_files(BEFORE,changed,baseline=pairs);self.assertFalse(r3.findings[0].acknowledged)
+    def test_stale_is_never_acknowledged(self):
+        r,_=analyze_files(BEFORE,AFTER);f=r.findings[0];self.assertEqual(f.status,'stale')
+        r2,_=analyze_files(BEFORE,AFTER,baseline={(f.section_id,f.fingerprint)});self.assertFalse(r2.findings[0].acknowledged)
+    def test_invalid_baseline_rejected(self):
+        from docmend.pipeline import load_baseline
+        with self.assertRaises(DocMendError):load_baseline('{"version":2}')
+    def test_cli_baseline_then_check_passes(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td);root=Path(td)
+            (root/'api.py').write_text(self.REVIEW['api.py']);git(td,'commit','-am','behaviour');head=git(td,'rev-parse','HEAD');base=git(td,'rev-parse','HEAD~1')
+            with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td,'--base',base,'--head',head]),2)
+            with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['baseline','--repo',td,'--base',base,'--head',head]),0)
+            # The baseline only counts once it is in the base commit.
+            with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td,'--base',base,'--head',head]),2)
+            git(td,'checkout','-q',base);git(td,'add','.docmend-baseline.json');git(td,'commit','-qm','baseline');newbase=git(td,'rev-parse','HEAD')
+            git(td,'checkout','-q',head);git(td,'merge','-q','--no-edit',newbase);newhead=git(td,'rev-parse','HEAD')
+            with patch('sys.stdout',new_callable=io.StringIO) as out:code=main(['check','--repo',td,'--base',newbase,'--head',newhead])
+            self.assertEqual(code,0,out.getvalue())
+    def test_baseline_file_is_not_source(self):
+        self.assertEqual(parse_code({'.docmend-baseline.json':'{"version":1,"acknowledged":[]}'}),{})

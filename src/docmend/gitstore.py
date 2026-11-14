@@ -76,7 +76,7 @@ class GitStore:
         eligible = replace(cfg, include=("*",))
         paths = self.run("diff", "--name-only", "-z", "--no-renames", base, head, "--").split(b"\0")
         extensions = ('.py','.toml','.json','.js','.jsx','.ts','.tsx','.go','.rs','.java','.yaml','.yml')
-        return sorted(path for raw in paths if raw for path in [raw.decode('utf-8')] if eligible.accepts(path) and path.endswith(extensions) and (not cfg.accepts(path) or not path.endswith(SUPPORTED_SUFFIXES)))
+        return sorted(path for raw in paths if raw for path in [raw.decode('utf-8')] if eligible.accepts(path) and path.endswith(extensions) and path != '.docmend-baseline.json' and (not cfg.accepts(path) or not path.endswith(SUPPORTED_SUFFIXES)))
 
     def trusted_config(self, base: str, path: str = ".docmend.toml") -> Config:
         try:
