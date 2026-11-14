@@ -190,3 +190,21 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class DraftBindingTests(unittest.TestCase):
+    def draft_report(self,td,section_id,after):
+        base,head=fixture(td);r,idx,_=analyze_repository(GitStore(Path(td)),base,head)
+        s=next(x for x in idx['sections'] if x['id']==section_id)
+        v=r.to_dict();v['edits']=[{'section_id':s['id'],'path':s['path'],'start':s['start'],'end':s['end'],'before':s['text'],'after':after,'file_hash':s['file_hash'],'mode':'draft','reason':'x','evidence':'model'}]
+        p=Path(td)/'report.json';p.write_text(json.dumps(v));return p
+    def test_draft_on_unflagged_section_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=self.draft_report(td,'docs/api.md#api-other','## Other\nInjected.\n')
+            with patch('sys.stderr',new_callable=io.StringIO):self.assertEqual(main(['apply','--repo',td,'--report',str(p),'--include-drafts']),3)
+            self.assertEqual((Path(td)/'docs/api.md').read_text(),BEFORE['docs/api.md'])
+    def test_draft_on_flagged_section_applies(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=self.draft_report(td,'docs/api.md#api','# API\n\nSignature: `fetch(url, timeout=60)` (reviewed).\n\n')
+            with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['apply','--repo',td,'--report',str(p),'--include-drafts']),0)
+            self.assertIn('(reviewed)',(Path(td)/'docs/api.md').read_text())
