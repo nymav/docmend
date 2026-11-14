@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import tomllib
 
 from .models import CodeUnit, DocMendError, digest
@@ -74,6 +75,24 @@ def parse_toml(path: str, text: str) -> list[CodeUnit]:
     except tomllib.TOMLDecodeError as exc:
         raise DocMendError(f"Cannot parse TOML: {path}") from exc
     units = []
+    lines = text.splitlines()
+
+    def locate(parts: list[str]) -> tuple[int, int]:
+        # Best-effort one-based line of a leaf key; whole file if not found.
+        begin = 0
+        if len(parts) > 1:
+            table = re.compile(r"^\s*\[\s*" + r"\s*\.\s*".join(re.escape(p) for p in parts[:-1]) + r"\s*\]\s*(#.*)?$")
+            begin = next((i + 1 for i, line in enumerate(lines) if table.match(line)), None)
+            if begin is None:
+                return 1, len(lines)
+        key = re.compile(r"^\s*[\"']?" + re.escape(parts[-1]) + r"[\"']?\s*=")
+        for i in range(begin, len(lines)):
+            if i > begin and re.match(r"^\s*\[", lines[i]):
+                break
+            if key.match(lines[i]):
+                return i + 1, i + 1
+        return 1, len(lines)
+
     def walk(values: dict, prefix: str = "") -> None:
         for key, value in values.items():
             name = prefix + key
@@ -81,7 +100,8 @@ def parse_toml(path: str, text: str) -> list[CodeUnit]:
                 walk(value, name + ".")
             else:
                 val = json.dumps(value, sort_keys=True, default=str)
-                units.append(CodeUnit(f"{path}::{name}", path, name, "config", 1, len(text.splitlines()), f"{name} = {val}", val, digest(val), {"value": val}))
+                start, end = locate(name.split("."))
+                units.append(CodeUnit(f"{path}::{name}", path, name, "config", start, end, f"{name} = {val}", val, digest(val), {"value": val}))
     walk(document)
     return units
 

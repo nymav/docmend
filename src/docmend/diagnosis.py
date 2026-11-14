@@ -19,7 +19,8 @@ def _inline(text: str):
         if f:
             if fence is None:
                 fence = f[1]
-            elif f[1][0] == fence[0] and len(f[1]) >= len(fence):
+            elif f[1][0] == fence[0] and len(f[1]) >= len(fence) and not line[f.end():].strip():
+                # Same closing rule as docparse.headings: no trailing text.
                 fence = None
         elif fence is None:
             for m in re.finditer(r"(?<!`)`([^`\r\n]+)`(?!`)", line):

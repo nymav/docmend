@@ -48,7 +48,13 @@ def parse_docs(files: dict[str, str]) -> dict[str, Section]:
             end = boundaries[j+1][0] if j+1 < len(boundaries) else len(lines)
             if end <= start:
                 continue
-            level = len(re.match(r"^\s*(#+)", lines[start])[1]) if re.match(r"^\s*(#+)", lines[start]) else 1
+            atx = re.match(r"^ {0,3}(#+)", lines[start])
+            if atx:
+                level = len(atx[1])
+            elif start + 1 < len(lines) and re.fullmatch(r" {0,3}-+\s*", lines[start+1].rstrip("\r\n")):
+                level = 2  # Setext underline "---" is a level-2 heading.
+            else:
+                level = 1
             while stack and stack[-1][0] >= level:
                 stack.pop()
             stack.append((level, title))

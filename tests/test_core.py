@@ -190,3 +190,17 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class ParsingAccuracyTests(unittest.TestCase):
+    def test_setext_dash_heading_is_level_two(self):
+        sections=parse_docs({'a.md':'Top\n===\nIntro\n\nSub\n---\nText\n'})
+        self.assertIn('a.md#top-sub',sections)
+    def test_fence_with_trailing_text_does_not_close(self):
+        from docmend.diagnosis import _inline
+        text='```\n``` not a close\n`hidden`\n```\nSignature: `shown`\n'
+        self.assertEqual([v for _,_,v in _inline(text)],['shown'])
+    def test_toml_keys_have_own_lines(self):
+        units=parse_code({'a.toml':'name = "x"\n\n[http]\nretries = 2\ntimeout = 30\n'})
+        self.assertEqual((units['a.toml::http.timeout'].line,units['a.toml::http.timeout'].end_line),(5,5))
+        self.assertEqual(units['a.toml::name'].line,1)
