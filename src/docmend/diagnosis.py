@@ -90,6 +90,29 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
     return updated, "; ".join(sorted(set(reasons)))
 
 
+def _draft_problem(section: Section, changes: list[Change], after: str) -> str | None:
+    """Deterministic checks a model draft must pass before any critic sees it."""
+    import builtins
+    import keyword
+    before_snippets = [v for _, _, v in _inline(section.text)]
+    after_snippets = [v for _, _, v in _inline(after)]
+    names = {c.unit.name.rsplit(".", 1)[-1] for c in changes}
+    # Inline code unrelated to the changed units must survive unchanged.
+    for snippet in before_snippets:
+        if not any(re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", snippet) for n in names) and snippet not in after_snippets:
+            return f"draft altered unrelated inline code `{snippet}`"
+    # New inline code may only use identifiers present in the section or the changed code.
+    known = section.text + "\n" + "\n".join(u.source for c in changes for u in (c.before, c.after) if u)
+    allowed = set(keyword.kwlist) | set(dir(builtins))
+    for snippet in after_snippets:
+        if snippet in before_snippets:
+            continue
+        for token in re.findall(r"[A-Za-z_]\w*", snippet):
+            if token not in allowed and not re.search(r"(?<!\w)" + re.escape(token) + r"(?!\w)", known):
+                return f"draft introduced unsupported identifier `{token}`"
+    return None
+
+
 def context(section: Section, changes: list[Change]) -> dict[str, Any]:
     return {"documentation": section.text, "changes": [{"kind": c.kind, "unit": c.unit.id, "before": c.before.source if c.before else None, "after": c.after.source if c.after else None} for c in changes]}
 
@@ -128,6 +151,11 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
         draft = provider.json('Return {"after":string,"reason":string}. Rewrite only the supplied documentation section, preserving heading lines, code fences, links and accurate material. Do not invent APIs or features. Include TODO(DocMend) only if a substantive ambiguity needs author review.', {**context(section, changes), "diagnosis": answer["reason"]})
         if set(draft) != {"after", "reason"} or not all(isinstance(draft[k], str) for k in draft) or not draft["after"] or len(draft["after"]) > max(1000, len(section.text)*2):
             raise DocMendError("Model repair does not match the response contract")
+        problem = _draft_problem(section, changes, draft["after"])
+        if problem:
+            finding.status = "review"
+            finding.reason += "; " + problem
+            return finding, None
         critic = provider.json('Return {"accurate":boolean,"preserves_unaffected":boolean,"reason":string}. Audit the proposed correction against supplied code and original documentation. Reject unsupported claims or unrelated rewrites.', {**context(section, changes), "proposed_documentation": draft["after"]})
         if set(critic) != {"accurate", "preserves_unaffected", "reason"} or type(critic["accurate"]) is not bool or type(critic["preserves_unaffected"]) is not bool or not isinstance(critic["reason"], str):
             raise DocMendError("Repair validation does not match the response contract")
