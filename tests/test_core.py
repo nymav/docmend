@@ -190,3 +190,18 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class RepairReverificationTests(unittest.TestCase):
+    def test_safe_repair_reverifies(self):
+        from docmend.diagnosis import _verify_rewrite
+        from docmend.changes import classify
+        r,_=analyze_files(BEFORE,AFTER);self.assertEqual(r.edits[0].mode,'safe')
+        change=classify(parse_code(BEFORE),parse_code(AFTER))[0]
+        section=parse_docs(AFTER)['docs/api.md#api']
+        self.assertTrue(_verify_rewrite(section,r.edits[0].after,change))
+        self.assertFalse(_verify_rewrite(section,section.text,change))
+    def test_unverifiable_rewrite_is_deferred(self):
+        with patch('docmend.diagnosis._verify_rewrite',return_value=False):
+            r,_=analyze_files(BEFORE,AFTER)
+        self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review');self.assertIn('re-verify',r.findings[0].reason)
