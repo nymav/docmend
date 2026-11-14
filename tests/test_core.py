@@ -190,3 +190,20 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class StagedCheckTests(unittest.TestCase):
+    def test_staged_change_detected(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td);root=Path(td)
+            (root/'api.py').write_text('def fetch(url, timeout=90):\n    return url\n');git(td,'add','api.py')
+            with patch('sys.stdout',new_callable=io.StringIO) as out:code=main(['check','--repo',td,'--staged'])
+            self.assertEqual(code,2);self.assertEqual(json.loads(out.getvalue())['changed_units'],1)
+    def test_unstaged_edits_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td);(Path(td)/'api.py').write_text('def fetch(url, timeout=90):\n    return url\n')
+            with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td,'--staged','--fail-on','stale']),0)
+    def test_base_still_required_without_staged(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td)
+            with patch('sys.stderr',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td]),3)

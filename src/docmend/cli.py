@@ -26,13 +26,14 @@ def parser() -> argparse.ArgumentParser:
     for command in ("index", "check", "publish"):
         sub = subs.add_parser(command)
         sub.add_argument("--repo", type=Path, default=Path.cwd())
-        sub.add_argument("--base", required=True)
+        sub.add_argument("--base", required=command != "check")
         sub.add_argument("--head", default="HEAD")
         sub.add_argument("--output", default=".docmend/report")
         sub.add_argument("--llm", action="store_true", help="Explicitly send bounded code/doc evidence to the configured provider")
         sub.add_argument("--semantic", action="store_true", help="Use real embedding vectors from the configured provider")
         if command == "check":
             sub.add_argument("--fail-on", choices=("review", "stale", "never"), default="review")
+            sub.add_argument("--staged", action="store_true", help="Check staged changes against --base (default HEAD); for pre-commit hooks")
         if command == "publish":
             sub.add_argument("--repository", required=True)
             sub.add_argument("--pr", type=int, required=True)
@@ -69,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
             written = apply_local(store.root, edits, include_drafts=args.include_drafts)
             print(json.dumps({"applied": written}))
             return 0
+        if args.command == "check" and args.staged:
+            args.base, args.head = args.base or "HEAD", "STAGED"
+        elif not args.base:
+            raise DocMendError("--base is required unless --staged is used")
         report, graph, files = analyze_repository(store, args.base, args.head, llm=args.llm, semantic=args.semantic)
         save(store.root, args.output, report, graph, files)
         if args.command == "publish":
