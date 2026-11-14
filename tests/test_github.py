@@ -131,3 +131,30 @@ class PublishTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(lambda _:publish(),range(2)))
         self.assertEqual(results.count('refused'),1)
         self.assertEqual(state,{'ref':True,'prs':1,'comments':1})
+
+
+class SuggestionTests(unittest.TestCase):
+    def setUp(self):
+        self.r,_=analyze_files(BEFORE,AFTER,base='b'*40,head='a'*40)
+        self.pull={'state':'open','head':{'repo':{'full_name':'owner/repo'},'sha':self.r.head,'ref':'f'},'base':{'repo':{'full_name':'owner/repo'},'sha':self.r.base}}
+    def run_suggest(self,patch_text,reviews=()):
+        posted=[];client=GitHub('owner/repo','token')
+        def request(method,path,body=None):
+            if path=='/pulls/3':return self.pull
+            if path.startswith('/pulls/3/reviews?'):return list(reviews)
+            if path.startswith('/pulls/3/files?'):return [{'filename':'docs/api.md','patch':patch_text}]
+            if path=='/pulls/3/reviews':posted.append(body);return {'html_url':'review'}
+            raise AssertionError(path)
+        with patch.object(client,'request',side_effect=request):return client.suggest(3,self.r),posted
+    def test_suggestion_inside_changed_hunk(self):
+        e=self.r.edits[0]
+        result,posted=self.run_suggest(f'@@ -1,0 +1,{e.end} @@')
+        self.assertEqual(result['suggested'],1);c=posted[0]['comments'][0]
+        self.assertEqual((c['start_line'],c['line']),(e.start+1,e.end));self.assertIn('```suggestion',c['body']);self.assertEqual(posted[0]['commit_id'],self.r.head)
+    def test_outside_diff_is_skipped(self):
+        result,posted=self.run_suggest('@@ -40,1 +40,1 @@')
+        self.assertEqual((result['suggested'],result['skipped']),(0,1));self.assertFalse(posted)
+    def test_not_reposted_for_same_head(self):
+        marker=f'<!-- docmend-suggestions:v1:{self.r.head} -->'
+        result,posted=self.run_suggest('@@ -1,0 +1,9 @@',[{'body':marker,'user':{'login':'github-actions[bot]'}}])
+        self.assertEqual(result['review'],'already posted');self.assertFalse(posted)
