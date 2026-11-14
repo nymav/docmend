@@ -190,3 +190,16 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class TokenIndexLinkTests(unittest.TestCase):
+    def test_token_index_matches_regex(self):
+        import re as _re
+        from docmend.mapping import explicit
+        units=parse_code({'a.py':'def fetch_all(x):\n    return x\nclass Job:\n    def run(self):\n        return 1\nLIMIT = 3\n'})
+        docs=parse_docs({'a.md':'# A\nfetch_all and Job.run, LIMITS not LIMIT_X; LIMIT.\n## B\nprefetch_all only.\n'})
+        for s in docs.values():
+            for u in units.values():
+                names=[u.name,u.name.rsplit('.',1)[-1]]
+                slow=any(_re.search(r'(?<![\w])'+_re.escape(n)+r'(?![\w])',s.text) for n in names)
+                self.assertEqual(explicit(s,u,{}),slow,(s.id,u.id))
