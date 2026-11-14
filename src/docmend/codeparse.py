@@ -50,10 +50,16 @@ def parse_python(path: str, text: str) -> list[CodeUnit]:
         elif isinstance(node, ast.ClassDef):
             name = prefix + node.name
             fields = {n.target.id: {"annotation": _literal(n.annotation), "value": _literal(n.value)} for n in node.body if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)}
-            contract = json.dumps({"bases": [ast.unparse(b) for b in node.bases], "fields": fields, "decorators": [ast.unparse(d) for d in node.decorator_list]}, sort_keys=True)
+            # Field default values are their own config units (below), so a
+            # changed default is one precise change, not a whole-class change.
+            shape = {k: v["annotation"] for k, v in fields.items()}
+            contract = json.dumps({"bases": [ast.unparse(b) for b in node.bases], "fields": shape, "decorators": [ast.unparse(d) for d in node.decorator_list]}, sort_keys=True)
             start = min([node.lineno, *[d.lineno for d in node.decorator_list]])
             units.append(CodeUnit(f"{path}::{name}", path, name, "class", start, node.end_lineno or node.lineno, "".join(lines[start-1:node.end_lineno]), contract, digest(contract), {"fields": fields}))
             for child in node.body:
+                if isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name) and child.value is not None:
+                    value = _literal(child.value)
+                    units.append(CodeUnit(f"{path}::{name}.{child.target.id}", path, f"{name}.{child.target.id}", "config", child.lineno, child.end_lineno or child.lineno, "".join(lines[child.lineno-1:child.end_lineno]), json.dumps({"value": value}), digest(json.dumps({"value": value})), {"value": value, "owner": name}))
                 if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                     visit(child, name + ".")
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -65,6 +71,14 @@ def parse_python(path: str, text: str) -> list[CodeUnit]:
                     units.append(CodeUnit(f"{path}::{target.id}", path, target.id, "config", node.lineno, node.end_lineno or node.lineno, "".join(lines[node.lineno-1:node.end_lineno]), contract, digest(contract), {"value": value}))
     for node in tree.body:
         visit(node)
+    # argparse: parser.add_argument("--flag", ..., default=<literal>) anywhere.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
+            flags = [a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str) and a.value.startswith("--")]
+            default = next((k.value for k in node.keywords if k.arg == "default"), None)
+            if flags and default is not None and isinstance(default, (ast.Constant, ast.UnaryOp)):
+                value = _literal(default)
+                units.append(CodeUnit(f"{path}::{flags[0]}", path, flags[0], "config", node.lineno, node.end_lineno or node.lineno, "".join(lines[node.lineno-1:node.end_lineno]), json.dumps({"value": value}), digest(json.dumps({"value": value})), {"value": value, "cli_flag": True}))
     return units
 
 

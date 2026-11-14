@@ -40,6 +40,38 @@ def _declared_fact(text: str, offset: int, heading: str = "") -> bool:
     return bool(re.search(r"(?:signature|default(?: value)?|default configuration)\s*(?:is\s*)?:?\s*$", line, re.I))
 
 
+def _unquote(value: str) -> str | None:
+    try:
+        parsed = ast.literal_eval(value)
+    except (ValueError, SyntaxError, MemoryError, RecursionError):
+        return None
+    return parsed if isinstance(parsed, str) and re.fullmatch(r"[\w.:/-]+", parsed) else None
+
+
+def _config_match(unit, value: str, snippet: str, text: str):
+    """Match a documented `NAME=value`; returns (name, separator, unquoted) or None.
+
+    CLI flags also match `--flag value`. A dataclass field also matches by its
+    short name when the section names its class. A quoted string default also
+    matches without quotes (`--mode=fast` for default 'fast').
+    """
+    names = [unit.name]
+    owner = unit.facts.get("owner")
+    if owner and re.search(r"(?<!\w)" + re.escape(owner) + r"(?!\w)", text):
+        names.append(unit.name.rsplit(".", 1)[-1])
+    forms = [(value, False)]
+    bare = _unquote(value)
+    if bare is not None:
+        forms.append((bare, True))
+    for name in names:
+        separators = r"(\s*=\s*|\s+)" if name.startswith("-") else r"(\s*=\s*)"
+        for form, unquoted in forms:
+            m = re.fullmatch(re.escape(name) + separators + re.escape(form), snippet)
+            if m:
+                return name, m[1], unquoted
+    return None
+
+
 def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
     old, new = change.before, change.after
     if change.kind != "contract" or old is None or new is None or old.kind != new.kind:
@@ -76,9 +108,13 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
         elif old.kind == "config":
             previous, current = old.facts.get("value"), new.facts.get("value")
             if previous is not None and current is not None:
-                pattern = re.escape(old.name) + r"\s*=\s*" + re.escape(previous)
-                if re.fullmatch(pattern, snippet):
-                    result = old.name + "=" + current
+                match = _config_match(old, previous, snippet, section.text)
+                replacement = current
+                if match and match[2]:
+                    replacement = _unquote(current)  # keep the documented unquoted style
+                if match and replacement is not None:
+                    name, separator, _ = match
+                    result = name + separator + replacement
                     reasons.append("Explicit documented config literal differs from the new value")
         if result != snippet:
             replacements.append((start, end, result))
@@ -114,7 +150,7 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
             if old.kind == "function" and old.facts["signature"] != new.facts["signature"]:
                 current = new.facts["signature"] in snippets
             elif old.kind == "config" and old.facts.get("value") != new.facts.get("value"):
-                current = any(re.fullmatch(re.escape(new.name) + r"\s*=\s*" + re.escape(str(new.facts["value"])), value) for value in snippets)
+                current = any(_config_match(new, str(new.facts["value"]), value, section.text) for value in snippets)
             if current:
                 return Finding(section.id, section.path, section.heading, "accurate", "Explicit documented signature/config literal matches the new contract; surrounding prose is not semantically certified", ids, 1.0), None
     if provider:
