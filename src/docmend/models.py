@@ -89,6 +89,8 @@ class Report:
     edits: list[Edit] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     schema_version: int = 1
+    # True when a budget cut the analysis short; findings cover only part of it.
+    incomplete: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

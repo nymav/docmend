@@ -44,10 +44,19 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
                 suspects[sid].append(change)
         if not linked[change.unit.id]:
             report.warnings.append(f"No documentation mapping for changed unit {change.unit.id}; coverage is incomplete")
+    selected = sorted(suspects)
     if len(suspects) > cfg.max_sections:
-        raise DocMendError("Suspect-section budget exceeded; narrow the include/exclude patterns")
+        # Check the most important sections and say loudly what was skipped,
+        # instead of producing nothing. Priority: contract/rename changes
+        # (repairable), then removals, then sections with the most changes.
+        rank = {"contract": 0, "renamed": 0, "removed": 1, "behaviour": 2, "added": 3}
+        selected = sorted(suspects, key=lambda sid: (min(rank.get(c.kind, 4) for c in suspects[sid]), -len(suspects[sid]), sid))[:cfg.max_sections]
+        skipped = sorted(set(suspects) - set(selected))
+        report.incomplete = True
+        report.warnings.append(f"Incomplete analysis: {len(skipped)} of {len(suspects)} linked sections were not checked because max_sections is {cfg.max_sections}; first skipped: {', '.join(skipped[:10])}")
+        selected = sorted(selected)
     names = Counter(u.name.rsplit(".", 1)[-1] for u in new_units.values())
-    for sid in sorted(suspects):
+    for sid in selected:
         budget.remaining()
         group = suspects[sid]
         ambiguous = any(names[c.unit.name.rsplit(".", 1)[-1]] > 1 for c in group)

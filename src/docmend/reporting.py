@@ -16,12 +16,12 @@ def cell(text: str) -> str:
 
 
 def summary(report: Report) -> dict:
-    return {"changed_units": len(report.changes), "stale": sum(f.status == "stale" for f in report.findings), "review": sum(f.status == "review" for f in report.findings), "accurate": sum(f.status == "accurate" for f in report.findings), "safe_edits": sum(e.mode == "safe" for e in report.edits), "draft_edits": sum(e.mode == "draft" for e in report.edits), "coverage_gaps": sum("No documentation mapping" in w for w in report.warnings)}
+    return {"changed_units": len(report.changes), "stale": sum(f.status == "stale" for f in report.findings), "review": sum(f.status == "review" for f in report.findings), "accurate": sum(f.status == "accurate" for f in report.findings), "safe_edits": sum(e.mode == "safe" for e in report.edits), "draft_edits": sum(e.mode == "draft" for e in report.edits), "coverage_gaps": sum("No documentation mapping" in w for w in report.warnings), "incomplete": int(report.incomplete)}
 
 
 def markdown(report: Report) -> str:
     counts = summary(report)
-    lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis |", "|---|---|---|---|"]
+    lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", *(["> **Incomplete analysis.** Some linked sections were not checked; see Analysis limits.", ""] if report.incomplete else []), f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis |", "|---|---|---|---|"]
     for finding in report.findings:
         lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status)} | {cell(finding.evidence)} | {cell(finding.reason)} |")
     if not report.findings:

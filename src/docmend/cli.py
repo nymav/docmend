@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.fail_on == "never":
             return 0
-        if counts["stale"] or (args.fail_on == "review" and (counts["review"] or counts["coverage_gaps"])):
+        if counts["stale"] or counts["incomplete"] or (args.fail_on == "review" and (counts["review"] or counts["coverage_gaps"])):
             return 2
         return 0
     except (DocMendError, OSError, ValueError, TypeError, KeyError) as exc:

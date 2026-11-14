@@ -84,7 +84,8 @@ class PipelineTests(unittest.TestCase):
         r,_=analyze_files({'a.py':'def x(): return 1\n'},{'a.py':'def y(): return 1\n'});self.assertTrue(any('No documentation mapping' in s for s in r.warnings))
     def test_section_budget(self):
         b={**BEFORE,'extra.md':'# B\n`fetch(url, timeout=30)`\n'}
-        with self.assertRaises(DocMendError):analyze_files(b,{**b,'api.py':AFTER['api.py']},cfg=Config(max_sections=1))
+        r,_=analyze_files(b,{**b,'api.py':AFTER['api.py']},cfg=Config(max_sections=1))
+        self.assertTrue(r.incomplete);self.assertEqual(len(r.findings),1);self.assertIn('Incomplete analysis: 1 of 2',' '.join(r.warnings))
     def test_embedding_interface(self):
         class Fake:
             def embed(self,texts):return [[1.,0.] for _ in texts]
@@ -190,3 +191,15 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class PartialResultTests(unittest.TestCase):
+    def test_contract_changes_checked_first(self):
+        b={'api.py':'def fetch(url, timeout=30):\n    return url\ndef other(x):\n    return x\n','docs/a.md':'# A\nother does things.\n','docs/z.md':'# Z\nSignature: `fetch(url, timeout=30)`.\n'}
+        a={**b,'api.py':'def fetch(url, timeout=60):\n    return url\ndef other(x):\n    return x + 1\n'}
+        r,_=analyze_files(b,a,cfg=Config(max_sections=1))
+        self.assertEqual([f.section_id for f in r.findings],['docs/z.md#z']);self.assertTrue(r.incomplete)
+    def test_incomplete_fails_check_unless_never(self):
+        from docmend.reporting import summary,markdown
+        r,_=analyze_files({**BEFORE,'x.md':'# X\n`fetch(url, timeout=30)`\n'},{**AFTER,'x.md':'# X\n`fetch(url, timeout=30)`\n'},cfg=Config(max_sections=1))
+        self.assertEqual(summary(r)['incomplete'],1);self.assertIn('Incomplete analysis',markdown(r))
