@@ -190,3 +190,15 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class LocalRenameTests(unittest.TestCase):
+    def semantic(self,src):return parse_code({'a.py':src})['a.py::f'].semantic
+    def test_local_rename_is_not_behaviour(self):
+        self.assertEqual(self.semantic('def f(x):\n    total = x + 1\n    return total\n'),self.semantic('def f(x):\n    result = x + 1\n    return result\n'))
+    def test_real_changes_still_differ(self):
+        base=self.semantic('def f(x):\n    total = x + 1\n    return total\n')
+        self.assertNotEqual(base,self.semantic('def f(x):\n    total = x + 2\n    return total\n'))
+        self.assertNotEqual(base,self.semantic('def f(x):\n    total = y + 1\n    return total\n'))
+    def test_globals_are_not_renamed(self):
+        self.assertNotEqual(self.semantic('def f():\n    global A\n    A = 1\n'),self.semantic('def f():\n    global B\n    B = 1\n'))

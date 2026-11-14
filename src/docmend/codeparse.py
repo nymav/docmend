@@ -13,11 +13,22 @@ def _literal(node: ast.AST | None) -> str | None:
     return ast.unparse(node) if node is not None else None
 
 
-def _body(nodes: list[ast.stmt]) -> str:
-    nodes = list(nodes)
+def _body(nodes: list[ast.stmt], params: set[str] | frozenset = frozenset()) -> str:
+    import copy
+    nodes = copy.deepcopy(list(nodes))
     if nodes and isinstance(nodes[0], ast.Expr) and isinstance(nodes[0].value, ast.Constant) and isinstance(nodes[0].value.value, str):
         nodes = nodes[1:]
-    return ast.dump(ast.Module(body=nodes, type_ignores=[]), include_attributes=False)
+    module = ast.Module(body=nodes, type_ignores=[])
+    # Renaming a local variable is not a behaviour change. Assigned names that
+    # are not parameters or global/nonlocal get canonical names in order of
+    # first appearance, so pure local renames hash identically.
+    declared = {n for node in ast.walk(module) if isinstance(node, (ast.Global, ast.Nonlocal)) for n in node.names}
+    local = {n.id for n in ast.walk(module) if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del))} - set(params) - declared
+    canonical: dict[str, str] = {}
+    for node in ast.walk(module):
+        if isinstance(node, ast.Name) and node.id in local:
+            node.id = canonical.setdefault(node.id, f"_local{len(canonical)}")
+    return ast.dump(module, include_attributes=False)
 
 
 def parse_python(path: str, text: str) -> list[CodeUnit]:
@@ -46,7 +57,7 @@ def parse_python(path: str, text: str) -> list[CodeUnit]:
                     cli_names += [k.value.value for k in decorator.keywords if k.arg == "name" and isinstance(k.value, ast.Constant) and isinstance(k.value.value, str)]
             contract = json.dumps({"signature": signature, "return": _literal(node.returns), "decorators": decorators, "async": isinstance(node, ast.AsyncFunctionDef)}, sort_keys=True)
             start = min([node.lineno, *[d.lineno for d in node.decorator_list]])
-            units.append(CodeUnit(f"{path}::{name}", path, name, "function", start, node.end_lineno or node.lineno, "".join(lines[start-1:node.end_lineno]), contract, digest(_body(node.body)), {"signature": signature, "params": defaults, "decorators": decorators, "cli_names": cli_names}))
+            units.append(CodeUnit(f"{path}::{name}", path, name, "function", start, node.end_lineno or node.lineno, "".join(lines[start-1:node.end_lineno]), contract, digest(_body(node.body, {a.arg for a in [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg] if a})), {"signature": signature, "params": defaults, "decorators": decorators, "cli_names": cli_names}))
         elif isinstance(node, ast.ClassDef):
             name = prefix + node.name
             fields = {n.target.id: {"annotation": _literal(n.annotation), "value": _literal(n.value)} for n in node.body if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)}
