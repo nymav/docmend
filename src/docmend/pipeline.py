@@ -51,7 +51,7 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
         budget.remaining()
         group = suspects[sid]
         ambiguous = any(names[c.unit.name.rsplit(".", 1)[-1]] > 1 for c in group)
-        finding, edit = diagnose(new_docs[sid], group, ambiguous=ambiguous, provider=provider)
+        finding, edit = diagnose(new_docs[sid], group, ambiguous=ambiguous, provider=provider, min_confidence=cfg.min_stale_confidence, require_agreement=cfg.require_agreement)
         if edit:
             try:
                 validate_edit(edit)

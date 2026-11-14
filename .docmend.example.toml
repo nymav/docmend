@@ -18,5 +18,9 @@ max_prompt_chars = 24000
 # A workflow timeout remains the hard process-level bound.
 analysis_timeout_seconds = 120
 max_provider_requests = 50
+# Model "stale" verdicts below this self-rated confidence become review (0 = off).
+min_stale_confidence = 0.0
+# Ask the model twice and require both to say "stale" (doubles diagnosis calls).
+require_agreement = false
 # To analyze JSON config, add "*.json" to include above. Keep report/build
 # directories excluded to avoid treating generated artifacts as source config.

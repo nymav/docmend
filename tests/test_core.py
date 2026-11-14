@@ -190,3 +190,30 @@ class ModelTests(unittest.TestCase):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# API\nChanged.\n','reason':'draft'},{'accurate':False,'preserves_unaffected':False,'reason':'unsupported'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review')
     def test_model_cannot_change_headings(self):
         f=self.model([{'status':'stale','reason':'changed','confidence':1},{'after':'# Malicious\nChanged.\n','reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'okay'}]);r,_=analyze_files(BEFORE,{**BEFORE,'api.py':''},provider=f);self.assertFalse(r.edits);self.assertIn('rejected',r.findings[0].reason)
+
+
+class ConfidenceGateTests(unittest.TestCase):
+    NEW={**AFTER,'api.py':'def fetch(url, timeout=60):\n    return "new"\n'}
+    DRAFT=[{'after':'# API\n\nSignature: `fetch(url, timeout=60)`.\n\n','reason':'d'},{'accurate':True,'preserves_unaffected':True,'reason':'ok'}]
+    def fake(self,answers):
+        class F:
+            calls=0
+            def json(s,*a):
+                v=answers[F.calls];F.calls+=1;return v
+        return F()
+    def test_low_confidence_stale_becomes_review(self):
+        f=self.fake([{'status':'stale','reason':'r','confidence':.4}])
+        r,_=analyze_files(BEFORE,self.NEW,provider=f,cfg=Config(min_stale_confidence=.7))
+        self.assertEqual(r.findings[0].status,'review');self.assertFalse(r.edits);self.assertIn('below',r.findings[0].reason)
+    def test_disagreement_becomes_review(self):
+        f=self.fake([{'status':'stale','reason':'r','confidence':.9},{'status':'accurate','reason':'r','confidence':.9}])
+        r,_=analyze_files(BEFORE,self.NEW,provider=f,cfg=Config(require_agreement=True))
+        self.assertEqual(r.findings[0].status,'review');self.assertIn('disagreed',r.findings[0].reason)
+    def test_agreement_keeps_stale(self):
+        f=self.fake([{'status':'stale','reason':'r','confidence':.9},{'status':'stale','reason':'r','confidence':.8},*self.DRAFT])
+        r,_=analyze_files(BEFORE,self.NEW,provider=f,cfg=Config(require_agreement=True))
+        self.assertEqual(r.findings[0].status,'stale');self.assertEqual(r.findings[0].confidence,.8);self.assertEqual(r.edits[0].mode,'draft')
+    def test_config_validation(self):
+        with self.assertRaises(DocMendError):Config.from_text('min_stale_confidence = 2.0')
+        with self.assertRaises(DocMendError):Config.from_text('require_agreement = 1')
+        self.assertTrue(Config.from_text('require_agreement = true').require_agreement)

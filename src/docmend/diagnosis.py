@@ -94,7 +94,11 @@ def context(section: Section, changes: list[Change]) -> dict[str, Any]:
     return {"documentation": section.text, "changes": [{"kind": c.kind, "unit": c.unit.id, "before": c.before.source if c.before else None, "after": c.after.source if c.after else None} for c in changes]}
 
 
-def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False, provider: ModelProvider | None = None) -> tuple[Finding, Edit | None]:
+def _valid_diagnosis(answer: dict) -> bool:
+    return set(answer) == {"status", "reason", "confidence"} and answer["status"] in ("stale", "accurate", "uncertain") and isinstance(answer["reason"], str) and len(answer["reason"]) <= 4000 and type(answer["confidence"]) in (int, float) and 0 <= answer["confidence"] <= 1
+
+
+def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False, provider: ModelProvider | None = None, min_confidence: float = 0.0, require_agreement: bool = False) -> tuple[Finding, Edit | None]:
     ids = sorted(c.unit.id for c in changes)
     if any(u and u.kind == "ambiguous" for c in changes for u in (c.before, c.after)):
         return Finding(section.id, section.path, section.heading, "review",
@@ -118,11 +122,25 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
             if current:
                 return Finding(section.id, section.path, section.heading, "accurate", "Explicit documented signature/config literal matches the new contract; surrounding prose is not semantically certified", ids, 1.0), None
     if provider:
-        answer = provider.json('Return {"status":"stale"|"accurate"|"uncertain","reason":string,"confidence":number}. Confidence is a self-rating, not a calibrated probability.', context(section, changes))
-        if set(answer) != {"status", "reason", "confidence"} or answer["status"] not in ("stale", "accurate", "uncertain") or not isinstance(answer["reason"], str) or len(answer["reason"]) > 4000 or type(answer["confidence"]) not in (int, float) or not 0 <= answer["confidence"] <= 1:
+        prompt = 'Return {"status":"stale"|"accurate"|"uncertain","reason":string,"confidence":number}. Confidence is a self-rating, not a calibrated probability.'
+        answer = provider.json(prompt, context(section, changes))
+        if not _valid_diagnosis(answer):
             raise DocMendError("Model diagnosis does not match the response contract")
         status = "review" if answer["status"] == "uncertain" else answer["status"]
         finding = Finding(section.id, section.path, section.heading, status, answer["reason"], ids, float(answer["confidence"]), "model")
+        if status == "stale" and answer["confidence"] < min_confidence:
+            finding.status = "review"
+            finding.reason += f"; self-rated confidence {answer['confidence']:.2f} is below the configured minimum {min_confidence:.2f}"
+            return finding, None
+        if status == "stale" and require_agreement:
+            second = provider.json(prompt, context(section, changes))
+            if not _valid_diagnosis(second):
+                raise DocMendError("Model diagnosis does not match the response contract")
+            if second["status"] != "stale":
+                finding.status = "review"
+                finding.reason += f"; a second diagnosis disagreed ({second['status']})"
+                return finding, None
+            finding.confidence = min(float(answer["confidence"]), float(second["confidence"]))
         if status != "stale":
             return finding, None
         draft = provider.json('Return {"after":string,"reason":string}. Rewrite only the supplied documentation section, preserving heading lines, code fences, links and accurate material. Do not invent APIs or features. Include TODO(DocMend) only if a substantive ambiguity needs author review.', {**context(section, changes), "diagnosis": answer["reason"]})
