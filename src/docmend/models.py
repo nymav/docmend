@@ -97,6 +97,9 @@ class Report:
     # model names, and hashes (never contents) of every model exchange.
     provenance: dict[str, Any] = field(default_factory=dict)
 
+    # True when a budget cut the analysis short; findings cover only part of it.
+    incomplete: bool = False
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
