@@ -26,6 +26,10 @@ class Config:
     max_prompt_chars: int = 24000
     analysis_timeout_seconds: int = 120
     max_provider_requests: int = 50
+    # A model "stale" verdict below this self-rated confidence becomes review.
+    min_stale_confidence: float = 0.0
+    # Ask the model twice; a "stale" verdict needs both answers to agree.
+    require_agreement: bool = False
 
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
@@ -54,6 +58,10 @@ class Config:
                 raise DocMendError(f"{key} must be between 1 and {upper}")
         if not isinstance(cfg.similarity_threshold, (float, int)) or not math.isfinite(cfg.similarity_threshold) or not 0 <= cfg.similarity_threshold <= 1:
             raise DocMendError("similarity_threshold must be a finite number in [0,1]")
+        if type(cfg.min_stale_confidence) not in (int, float) or not math.isfinite(cfg.min_stale_confidence) or not 0 <= cfg.min_stale_confidence <= 1:
+            raise DocMendError("min_stale_confidence must be a finite number in [0,1]")
+        if type(cfg.require_agreement) is not bool:
+            raise DocMendError("require_agreement must be true or false")
         for key in ("endpoint", "model", "embedding_model", "api_key_env"):
             if not isinstance(getattr(cfg, key), str):
                 raise DocMendError(f"{key} must be a string")
