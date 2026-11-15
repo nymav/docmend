@@ -34,7 +34,7 @@ def fixture(root):
 class ParserTests(unittest.TestCase):
     def test_python_contracts(self):
         u=parse_code({'api.py':'@app.get("/health")\ndef check(q: str="ok"):\n    return q\nLIMIT=10\nclass Settings:\n    retries: int=2\n    def run(self): return 1\n'})
-        self.assertEqual(set(u),{'api.py::check','api.py::LIMIT','api.py::Settings','api.py::Settings.run'})
+        self.assertEqual(set(u),{'api.py::check','api.py::LIMIT','api.py::Settings','api.py::Settings.retries','api.py::Settings.run'})
         self.assertIn('/health',str(u['api.py::check'].facts));self.assertIn('retries',u['api.py::Settings'].facts['fields'])
     def test_cli_decorator_names_link_to_docs(self):
         units=parse_code({'a.py':'@app.command(name="serve")\n@click.option("--port",default=8000)\ndef main(port): return port\n'})
@@ -409,3 +409,24 @@ class StagedCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             fixture(td)
             with patch('sys.stderr',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td]),3)
+
+class FlagAndFieldRepairTests(unittest.TestCase):
+    def test_argparse_flag_default_repaired_in_both_styles(self):
+        cli='import argparse\np=argparse.ArgumentParser()\np.add_argument("--port", type=int, default={})\np.add_argument("--mode", default="{}")\n'
+        doc='# CLI\n\nDefault: `--port 8000`.\nDefault: `--mode=fast`.\n'
+        b={'cli.py':cli.format(8000,'fast'),'docs/cli.md':doc}
+        r,_=analyze_files(b,{**b,'cli.py':cli.format(9000,'fast')})
+        self.assertIn('`--port 9000`',r.edits[0].after);self.assertEqual(r.edits[0].mode,'safe')
+        r,_=analyze_files(b,{**b,'cli.py':cli.format(8000,'slow')})
+        self.assertIn('`--mode=slow`',r.edits[0].after)
+    def test_dataclass_field_default_repaired(self):
+        code='from dataclasses import dataclass\n@dataclass\nclass Settings:\n    retries: int = {}\n'
+        doc='# Settings\n\nThe Settings class.\n\nDefault: `retries=3`.\n'
+        b={'s.py':code.format(3),'docs/s.md':doc}
+        r,_=analyze_files(b,{**b,'s.py':code.format(5)})
+        self.assertEqual([c['kind'] for c in r.changes],['contract']);self.assertIn('`retries=5`',r.edits[0].after)
+    def test_field_short_name_needs_class_in_section(self):
+        code='class Settings:\n    retries: int = {}\n'
+        b={'s.py':code.format(3),'docs/s.md':'# Other\n\nDefault: `retries=3`.\n'}
+        r,_=analyze_files(b,{**b,'s.py':code.format(5)})
+        self.assertFalse(r.edits)
