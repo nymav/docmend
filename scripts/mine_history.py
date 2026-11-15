@@ -84,6 +84,7 @@ def main(argv=None) -> int:
     ap.add_argument("--commits", type=int, default=400)
     ap.add_argument("--window", type=int, default=30)
     ap.add_argument("--output", default="artifacts/history")
+    ap.add_argument("--behaviour-scope", choices=["subject", "all"], help="Override behaviour_scope (to measure its effect)")
     ap.add_argument("--keep-history-docs", action="store_true", help="Also check changelogs (to measure their effect)")
     a = ap.parse_args(argv)
     repo = a.repo
@@ -100,6 +101,9 @@ def main(argv=None) -> int:
         if a.keep_history_docs:
             from dataclasses import replace
             cfg = replace(cfg, skip_history_docs=False)
+        if a.behaviour_scope:
+            from dataclasses import replace as _r
+            cfg = _r(cfg, behaviour_scope=a.behaviour_scope)
         code = [p for p in changed if p.endswith(".py") and cfg.accepts(p)]
         if not code:
             continue

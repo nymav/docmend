@@ -492,3 +492,21 @@ class HistoryDocTests(unittest.TestCase):
         b={**BEFORE,'CHANGELOG.md':'# 1.0\n\nSignature: `fetch(url, timeout=30)`.\n'}
         r,_=analyze_files(b,{**b,'api.py':AFTER['api.py']})
         self.assertEqual([f.path for f in r.findings],['docs/api.md'])
+
+
+class BehaviourScopeTests(unittest.TestCase):
+    CODE_B={'m.py':'def echo(x):\n    return x\n'}
+    CODE_A={'m.py':'def echo(x):\n    return str(x)\n'}
+    def run_doc(self, doc, scope):
+        b={**self.CODE_B,'docs/a.md':doc}
+        return analyze_files(b,{**b,**self.CODE_A},cfg=Config(behaviour_scope=scope))[0]
+    def test_default_flags_every_mention(self):
+        self.assertEqual(len(self.run_doc('# Usage\n\nCall `echo` here.\n','all').findings),1)
+    def test_subject_skips_passing_mentions_and_counts_them(self):
+        r=self.run_doc('# Usage\n\nCall `echo` here.\n','subject')
+        self.assertEqual((r.findings,r.behaviour_mentions_skipped),([],1))
+    def test_subject_keeps_sections_about_the_unit(self):
+        for doc in ['# echo\n\nPrints.\n','# Usage\n\n`echo` prints; `echo` returns.\n']:
+            self.assertEqual(len(self.run_doc(doc,'subject').findings),1,doc)
+    def test_invalid_scope(self):
+        with self.assertRaises(DocMendError):Config.from_text('behaviour_scope = "some"\n')

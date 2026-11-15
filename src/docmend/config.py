@@ -56,6 +56,13 @@ class Config:
     # later human edits less often than chance (1.6% vs 14.4% overall).
     skip_history_docs: bool = True
 
+    # Body-only (behaviour) changes flag every section that mentions the unit
+    # ("all", default) or only sections about it ("subject": heading, declared
+    # fact or two mentions). "subject" is quieter but can miss real drift, e.g.
+    # "`send` retries three times" mentions send once; real history showed
+    # behaviour-only flags confirmed as often as any other, so it is opt-in.
+    behaviour_scope: str = "all"
+
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
         if p.is_absolute() or ".." in p.parts or "\\" in path:
@@ -92,6 +99,8 @@ class Config:
 
         if type(cfg.docstrings) is not bool:
             raise DocMendError("docstrings must be true or false")
+        if cfg.behaviour_scope not in ("subject", "all"):
+            raise DocMendError('behaviour_scope must be "subject" or "all"')
         if type(cfg.skip_history_docs) is not bool:
             raise DocMendError("skip_history_docs must be true or false")
 

@@ -136,6 +136,9 @@ class Report:
 
     # True when a budget cut the analysis short; findings cover only part of it.
     incomplete: bool = False
+    # Behaviour-only changes not reported because the section only mentions
+    # the unit in passing (behaviour_scope = "subject").
+    behaviour_mentions_skipped: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

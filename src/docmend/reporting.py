@@ -73,6 +73,9 @@ def markdown(report: Report) -> str:
     if not report.findings:
         lines += ["", "No mapped documentation drift was identified. This is not a claim of complete documentation accuracy."]
     lines += evidence_section(report)
+    if report.behaviour_mentions_skipped:
+        report_note = f"{report.behaviour_mentions_skipped} passing mention(s) of functions whose body changed were not flagged (behaviour_scope = \"subject\")."
+        lines += ["", report_note]
     if report.warnings:
         lines += ["", "### Analysis limits", "", *["- " + cell(w) for w in report.warnings]]
     lines += ["", "Safe edits are limited to explicit documented signatures/defaults/config literals. Model judgments and drafts require review. Confidence is not a calibrated correctness probability.", ""]

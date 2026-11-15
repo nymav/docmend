@@ -32,3 +32,5 @@ scopes = []
 
 # Never check CHANGELOG/CHANGES/HISTORY/NEWS/release notes: they record history.
 skip_history_docs = true
+# Body-only code changes flag sections about the unit ("subject") or every mention ("all").
+behaviour_scope = "all"

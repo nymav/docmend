@@ -43,6 +43,24 @@ def docstring_sections(files: dict[str, str], units: dict) -> dict:
     return sections
 
 
+def about_unit(section, unit) -> bool:
+    """Is this section about the unit, rather than mentioning it in passing?
+
+    True when the heading names it, a declared fact names it, or the text
+    names it at least twice. Used for body-only changes to widely used
+    functions, which otherwise flag every doc that calls them.
+    """
+    import re
+    from .diagnosis import _facts
+    short = unit.name.rsplit(".", 1)[-1]
+    pattern = re.compile(r"(?<![\w.])" + re.escape(short) + r"(?!\w)")
+    if pattern.search(section.heading):
+        return True
+    if any(pattern.search(v) for _, _, v in _facts(section.text, section.heading, section.path.endswith(".rst"))):
+        return True
+    return len(pattern.findall(section.text)) >= 2
+
+
 def finding_fingerprint(section, group) -> str:
     import json
     from .models import digest
@@ -102,6 +120,9 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
         sections = set().union(*(linked[i] for i in ids))
         for sid in sorted(sections):
             if sid in new_docs:
+                if change.kind == "behaviour" and cfg.behaviour_scope == "subject" and not about_unit(new_docs[sid], change.unit):
+                    report.behaviour_mentions_skipped += 1
+                    continue
                 suspects[sid].append(change)
         if not sections:
             report.warnings.append(f"No documentation mapping for changed unit {change.unit.id}; coverage is incomplete")
