@@ -462,3 +462,18 @@ class DocstringTests(unittest.TestCase):
         b={'api.py':self.SRC.format(30,'url')}
         r,_=analyze_files(b,{'api.py':self.SRC.format(30,'url + "/"')},cfg=Config(docstrings=True))
         self.assertFalse(r.findings)
+
+class ScopeTests(unittest.TestCase):
+    FILES={'pkg/a/api.py':'def fetch(url, timeout=30):\n    return url\n','pkg/b/api.py':'def fetch(url, timeout=30):\n    return url\n',
+           'pkg/a/README.md':'# A\nSignature: `fetch(url, timeout=30)`.\n','pkg/b/README.md':'# B\nSignature: `fetch(url, timeout=30)`.\n','README.md':'# Root\nSignature: `fetch(url, timeout=30)`.\n'}
+    def test_scoped_docs_link_only_own_package(self):
+        after={**self.FILES,'pkg/a/api.py':'def fetch(url, timeout=60):\n    return url\n'}
+        r,_=analyze_files(self.FILES,after,cfg=Config(scopes=('pkg/a','pkg/b')))
+        self.assertEqual(sorted(f.section_id for f in r.findings),['README.md#root','pkg/a/README.md#a'])
+    def test_without_scopes_everything_links(self):
+        after={**self.FILES,'pkg/a/api.py':'def fetch(url, timeout=60):\n    return url\n'}
+        r,_=analyze_files(self.FILES,after)
+        self.assertEqual(len(r.findings),3)
+    def test_invalid_scope_rejected(self):
+        for bad in ['scopes = ["../x"]','scopes = ["pkg/*"]','scopes = "pkg"']:
+            with self.assertRaises(DocMendError):Config.from_text(bad)

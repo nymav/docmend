@@ -92,7 +92,13 @@ def explicit(section: Section, unit: CodeUnit, cache: dict | None = None) -> boo
     return bool(code_only) and any(_mentions(n, section.id + "\0code", _code_spans(section.text), cache) for n in code_only)
 
 
-def build_index(units: dict[str, CodeUnit], sections: dict[str, Section], *, embedder: Embedder | None = None, threshold: float = .78) -> dict:
+def scope_of(path: str, scopes: tuple[str, ...]) -> str | None:
+    """Longest configured folder that contains path, or None."""
+    matches = [s.rstrip("/") for s in scopes if path == s.rstrip("/") or path.startswith(s.rstrip("/") + "/")]
+    return max(matches, key=len) if matches else None
+
+
+def build_index(units: dict[str, CodeUnit], sections: dict[str, Section], *, embedder: Embedder | None = None, threshold: float = .78, scopes: tuple[str, ...] = ()) -> dict:
     links = []
     unit_list, section_list = list(units.values()), list(sections.values())
     vectors = None
@@ -102,7 +108,10 @@ def build_index(units: dict[str, CodeUnit], sections: dict[str, Section], *, emb
             raise DocMendError("Embedding response count mismatch")
     cache: dict = {}
     for j, section in enumerate(section_list):
+        doc_scope = scope_of(section.path, scopes) if scopes else None
         for i, unit in enumerate(unit_list):
+            if doc_scope is not None and scope_of(unit.path, scopes) != doc_scope:
+                continue
             if explicit(section, unit, cache):
                 links.append({"unit": unit.id, "section": section.id, "method": "reference", "score": 1.0})
             elif vectors:

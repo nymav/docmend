@@ -35,6 +35,10 @@ class Config:
     # findings are review/stale reports only; DocMend never edits .py files.
     docstrings: bool = False
 
+    # Monorepo package folders. Docs inside a scope only link to code in the
+    # same scope; docs outside every scope (e.g. root README) link anywhere.
+    scopes: tuple[str, ...] = ()
+
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
         if p.is_absolute() or ".." in p.parts or "\\" in path:
@@ -50,7 +54,7 @@ class Config:
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise DocMendError(f"Unknown config keys: {', '.join(sorted(unknown))}")
-        for key in ("include", "exclude"):
+        for key in ("include", "exclude", "scopes"):
             if key in values:
                 if not isinstance(values[key], list) or not all(isinstance(x, str) for x in values[key]):
                     raise DocMendError(f"{key} must be a list of strings")
@@ -69,6 +73,11 @@ class Config:
 
         if type(cfg.docstrings) is not bool:
             raise DocMendError("docstrings must be true or false")
+
+        for scope in cfg.scopes:
+            p = PurePosixPath(scope)
+            if not scope or p.is_absolute() or ".." in p.parts or "\\" in scope or any(c in scope for c in "*?["):
+                raise DocMendError("scopes must be plain repository-relative folders")
         for key in ("endpoint", "model", "embedding_model", "api_key_env"):
             if not isinstance(getattr(cfg, key), str):
                 raise DocMendError(f"{key} must be a string")

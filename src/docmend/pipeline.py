@@ -77,8 +77,8 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
     if semantic and embedder is not None:
         from .mapping import CachingEmbedder
         embedder = CachingEmbedder(embedder)
-    old_index = build_index(old_units, old_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold)
-    new_index = build_index(new_units, new_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold)
+    old_index = build_index(old_units, old_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold, scopes=cfg.scopes)
+    new_index = build_index(new_units, new_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold, scopes=cfg.scopes)
     budget.remaining()
     changes = classify(old_units, new_units)
     report = Report(base, head, new_index["fingerprint"], [{"kind": c.kind, "unit": c.unit.id, "path": c.unit.path, "line": c.unit.line, "before": asdict(c.before) if c.before else None, "after": asdict(c.after) if c.after else None} for c in changes])

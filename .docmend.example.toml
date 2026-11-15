@@ -26,3 +26,6 @@ require_agreement = false
 # directories excluded to avoid treating generated artifacts as source config.
 # Also report stale function/class docstrings on signature changes (never edited).
 docstrings = false
+
+# Monorepo package folders: docs inside one only link to code in the same folder.
+scopes = []
