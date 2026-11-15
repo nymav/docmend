@@ -341,3 +341,17 @@ class BaselineTests(unittest.TestCase):
             self.assertEqual(code,0,out.getvalue())
     def test_baseline_file_is_not_source(self):
         self.assertEqual(parse_code({'.docmend-baseline.json':'{"version":1,"acknowledged":[]}'}),{})
+
+class TokenIndexLinkTests(unittest.TestCase):
+    def test_token_index_matches_regex(self):
+        import re as _re
+        from docmend.mapping import explicit, weak_name, _code_spans
+        units=parse_code({'a.py':'def fetch_all(x):\n    return x\nclass Job:\n    def run(self):\n        return 1\nLIMIT = 3\n'})
+        docs=parse_docs({'a.md':'# A\nfetch_all and Job.run, LIMITS not LIMIT_X; LIMIT.\n## B\nprefetch_all only, `run` here.\n'})
+        hit=lambda n,t:_re.search(r'(?<![\w])'+_re.escape(n)+r'(?![\w])',t) is not None
+        for s in docs.values():
+            for u in units.values():
+                short=u.name.rsplit('.',1)[-1]
+                prose=([u.name] if u.name!=short else [])+([] if weak_name(short) else [short])
+                slow=any(hit(n,s.text) for n in prose) or (weak_name(short) and hit(short,_code_spans(s.text)))
+                self.assertEqual(explicit(s,u,{}),slow,(s.id,u.id))

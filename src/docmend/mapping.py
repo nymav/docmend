@@ -34,7 +34,23 @@ def _code_spans(text: str) -> str:
     return "\n".join(re.findall(r"`([^`\r\n]+)`", text))
 
 
-def explicit(section: Section, unit: CodeUnit) -> bool:
+def _words(key: str, text: str, cache: dict | None) -> frozenset:
+    if cache is None:
+        return frozenset(re.findall(r"\w+", text))
+    if key not in cache:
+        cache[key] = frozenset(re.findall(r"\w+", text))
+    return cache[key]
+
+
+def _mentions(name: str, key: str, text: str, cache: dict | None) -> bool:
+    # A plain word name matches exactly when it is one of the text's \w+
+    # tokens, which is what the boundary regex checks; skip the scan.
+    if re.fullmatch(r"\w+", name):
+        return name in _words(key, text, cache)
+    return re.search(r"(?<![\w])" + re.escape(name) + r"(?![\w])", text) is not None
+
+
+def explicit(section: Section, unit: CodeUnit, cache: dict | None = None) -> bool:
     short = unit.name.rsplit(".", 1)[-1]
     prose = [unit.name] if unit.name != short else []
     # A dotted/qualified name is specific enough anywhere; a weak short name
@@ -45,9 +61,9 @@ def explicit(section: Section, unit: CodeUnit) -> bool:
     if unit.kind == "function":
         prose += unit.facts.get("cli_names", [])
         prose += [m for decorator in unit.facts.get("decorators", []) for m in re.findall(r"['\"](/[^'\"]+)['\"]", decorator)]
-    pattern = lambda name: r"(?<![\w])" + re.escape(name) + r"(?![\w])"
-    spans = _code_spans(section.text) if code_only else ""
-    return any(re.search(pattern(n), section.text) for n in prose) or any(re.search(pattern(n), spans) for n in code_only)
+    if any(_mentions(n, section.id, section.text, cache) for n in prose):
+        return True
+    return bool(code_only) and any(_mentions(n, section.id + "\0code", _code_spans(section.text), cache) for n in code_only)
 
 
 def build_index(units: dict[str, CodeUnit], sections: dict[str, Section], *, embedder: Embedder | None = None, threshold: float = .78) -> dict:
@@ -58,9 +74,10 @@ def build_index(units: dict[str, CodeUnit], sections: dict[str, Section], *, emb
         vectors = embedder.embed([u.source for u in unit_list] + [s.text for s in section_list])
         if len(vectors) != len(unit_list) + len(section_list):
             raise DocMendError("Embedding response count mismatch")
+    cache: dict = {}
     for j, section in enumerate(section_list):
         for i, unit in enumerate(unit_list):
-            if explicit(section, unit):
+            if explicit(section, unit, cache):
                 links.append({"unit": unit.id, "section": section.id, "method": "reference", "score": 1.0})
             elif vectors:
                 score = cosine(vectors[i], vectors[len(unit_list)+j])
