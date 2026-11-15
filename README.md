@@ -120,6 +120,51 @@ Every finding carries `codes`: exactly one outcome code, plus codes for what cha
 | `old-value-in-prose` | The old value still appears in the section outside any declared fact |
 | `no-declared-fact` | The section never states the value as Signature/Default, so it cannot be fixed automatically |
 
+## Evidence (current)
+
+Three independent checks, from strongest guarantee to most realistic.
+
+**1. Stress suite: hard guarantees, enforced in CI** (`tests/stress/`, 97 labelled cases). Every literal type, signature shape changes, config/TOML/dataclass/argparse values, Python code blocks, reStructuredText, prose defaults, history/example/migration docs, ambiguity and untouched controls. CI fails if DocMend ever:
+
+| Guarantee | Result |
+|---|---|
+| edits, or calls stale, a doc that is still correct | 0 |
+| misses (stays silent on) a doc that is stale | 0 |
+| writes a fix that differs from the hand-written correct text | 0 |
+
+Each case also pins its expected outcome (fixed / review / quiet), so any behaviour change has to be made on purpose.
+
+**2. Frozen evaluation splits** (constructed, labelled before scoring):
+
+| Split | Stale confirmed + fixed | Stale left for review | Correct docs left unchanged | Wrong fixes |
+|---|---|---|---|---|
+| development | 12 / 16 | 4 | 12 / 12 | 0 |
+| challenge | 9 / 14 | 5 | 10 / 10 | 0 |
+| source-backed | 3 / 6 | 3 | 6 / 6 | 0 |
+
+**3. Real history** (`scripts/mine_history.py`). 300 first-parent commits each of click, requests, httpx and typer were replayed as pull requests with each repository's own config. A flagged section counts as *confirmed* if a human rewrote it within the next 30 commits; the *baseline* is the same rate for sections DocMend did not flag. These labels are inferred from history (silver), not human-verified.
+
+| Repository | Flags | Confirmed later | Baseline | Lift |
+|---|---|---|---|---|
+| click | 1,279 | 20.8% | 17.4% | 1.2× |
+| requests | 478 | 11.1% | 8.7% | 1.3× |
+| httpx | 1,090 | 6.3% | 4.9% | 1.3× |
+| typer | 510 | 33.1% | 11.4% | 2.9× |
+
+**Automatic fixes on real history: 0.** Not because the rules refused: in these 1,200 commits, default and config values rarely changed (requests: 6, all private regexes or `setup.py`; httpx: 39, almost all one `verify=True` → `None` change), and no linked doc stated an old value as a checkable fact. Automatic fixes matter where docs state defaults explicitly (API references, internal tools, config-heavy apps); on mature libraries DocMend's value is the review flags.
+
+`behaviour_scope = "subject"` (opt-in) cut flags 27% (3,357 → 2,436) and raised precision from 16.6% to 18.4%, but lost 109 confirmed flags (557 → 448), and the stress suite shows it can miss real drift, so it is not the default.
+
+What this shows honestly: flags carry signal on every repository, but most review flags on real projects are not followed by a doc edit, so review is a prompt to look, not a verdict. Skipping changelogs (now the default) removed 7% of flags with no loss of confirmed ones.
+
+Reproduce:
+
+```bash
+PYTHONPATH=src:tests python -m unittest test_stress
+git clone https://github.com/pallets/click /tmp/click
+python scripts/mine_history.py /tmp/click --commits 300 --window 30 --output artifacts/history/click
+```
+
 ## Expanded evaluation (0.1.1)
 
 [Full evaluation report](docs/EVALUATION.md): 73 passing tests, about 90.8% executable-line coverage, 28 development + 24 reserved challenge + 12 source-backed mutation cases. The expanded development set exposed three wrong automatic repairs; these were fixed before challenge scoring. On the challenge split, 8/14 stale sections were automatically confirmed and repaired, six were deferred, and all ten accurate sections were unchanged. Eleven sections in total needed review. These are constructed cases, not a human-reviewed real-world accuracy estimate.
