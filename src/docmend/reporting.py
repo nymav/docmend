@@ -16,14 +16,14 @@ def cell(text: str) -> str:
 
 
 def summary(report: Report) -> dict:
-    return {"changed_units": len(report.changes), "stale": sum(f.status == "stale" for f in report.findings), "review": sum(f.status == "review" for f in report.findings), "accurate": sum(f.status == "accurate" for f in report.findings), "safe_edits": sum(e.mode == "safe" for e in report.edits), "draft_edits": sum(e.mode == "draft" for e in report.edits), "coverage_gaps": sum("No documentation mapping" in w for w in report.warnings)}
+    return {"changed_units": len(report.changes), "stale": sum(f.status == "stale" for f in report.findings), "review": sum(f.status == "review" and not f.acknowledged for f in report.findings), "acknowledged": sum(f.acknowledged for f in report.findings), "accurate": sum(f.status == "accurate" for f in report.findings), "safe_edits": sum(e.mode == "safe" for e in report.edits), "draft_edits": sum(e.mode == "draft" for e in report.edits), "coverage_gaps": sum("No documentation mapping" in w for w in report.warnings)}
 
 
 def markdown(report: Report) -> str:
     counts = summary(report)
     lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis |", "|---|---|---|---|"]
     for finding in report.findings:
-        lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status)} | {cell(finding.evidence)} | {cell(finding.reason)} |")
+        lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status + (' (acknowledged)' if finding.acknowledged else ''))} | {cell(finding.evidence)} | {cell(finding.reason)} |")
     if not report.findings:
         lines += ["", "No mapped documentation drift was identified. This is not a claim of complete documentation accuracy."]
     if report.warnings:

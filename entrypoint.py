@@ -48,7 +48,7 @@ def run():
         with open(output,'a') as f:
             f.write('report='+out+'/report.json\n')
             f.write('sarif='+out+'/report.sarif\n')
-            for name,value in [('stale',sum(x['status']=='stale' for x in report['findings'])),('review',sum(x['status']=='review' for x in report['findings'])),('safe-edits',sum(x['mode']=='safe' for x in report['edits']))]:f.write(f'{name}={value}\n')
+            for name,value in [('stale',sum(x['status']=='stale' for x in report['findings'])),('review',sum(x['status']=='review' and not x.get('acknowledged') for x in report['findings'])),('safe-edits',sum(x['mode']=='safe' for x in report['edits']))]:f.write(f'{name}={value}\n')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:f.write((repo/out/'summary.md').read_text())
     if publish:

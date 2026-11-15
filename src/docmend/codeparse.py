@@ -122,7 +122,7 @@ def parse_code(files: dict[str, str], *, review_duplicates: bool = False) -> dic
     for path, text in sorted(files.items()):
         if path.endswith(".py"):
             units.extend(parse_python(path, text))
-        elif path.endswith(".json"):
+        elif path.endswith(".json") and not path.endswith(".docmend-baseline.json"):
             units.extend(parse_json(path, text))
         elif path.endswith(".toml") and not path.endswith(".docmend.toml"):
             units.extend(parse_toml(path, text))

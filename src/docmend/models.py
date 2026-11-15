@@ -63,6 +63,10 @@ class Finding:
     unit_ids: list[str]
     confidence: float = 0.0
     evidence: str = "static"
+    # Ties a finding to this exact section text and these exact code changes.
+    fingerprint: str = ""
+    # True when a trusted baseline already acknowledged this exact review.
+    acknowledged: bool = False
 
 
 @dataclass
