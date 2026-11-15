@@ -4,7 +4,7 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { validateReport, counts, filterFindings, lineDiff, makePatch } from '../ui/report-model.js';
+import { validateReport, counts, filterFindings, lineDiff, makePatch, trend } from '../ui/report-model.js';
 const original = JSON.parse(readFileSync(new URL('../ui/demo-before.json', import.meta.url)));
 const copy = () => structuredClone(original);
 test('real engine report has one stale declaration and one safe proposal', () => {
@@ -64,4 +64,15 @@ test('patch handles two sections, line offsets and no final newline', () => {
     execFileSync('git', ['apply', '--unidiff-zero', '-'], { cwd: root, input: makePatch(edits) });
     assert.equal(readFileSync(join(root, 'readme.md'), 'utf8'), 'first\nextra\nkeep\nchanged');
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+test('trend lists counts in load order and repeated sections', () => {
+  const before = copy(), after = JSON.parse(readFileSync(new URL('../ui/demo-after.json', import.meta.url)));
+  const t = trend([{ name: 'one', report: before }, { name: 'two', report: after }, { name: 'three', report: copy() }]);
+  assert.deepEqual(t.rows.map(r => [r.name, r.stale]), [['one', 1], ['two', 0], ['three', 1]]);
+  assert.equal(t.hotspots.length, 1);
+  assert.equal(t.hotspots[0].times, 2);
+  assert.equal(t.hotspots[0].section, before.findings[0].section_id);
+});
+test('trend ignores sections flagged only once', () => {
+  assert.deepEqual(trend([{ name: 'a', report: copy() }]).hotspots, []);
 });
