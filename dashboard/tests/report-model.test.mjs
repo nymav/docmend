@@ -76,3 +76,14 @@ test('trend lists counts in load order and repeated sections', () => {
 test('trend ignores sections flagged only once', () => {
   assert.deepEqual(trend([{ name: 'a', report: copy() }]).hotspots, []);
 });
+
+test('reason codes are optional and validated', async () => {
+  const { validateReport } = await import('../ui/report-model.js');
+  const base = { schema_version: 1, base: 'a'.repeat(40), head: 'b'.repeat(40), edits: [], changes: [],
+    findings: [{ status: 'review', path: 'a.md', heading: 'A', reason: 'r', section_id: 'a.md#a', evidence: 'static', unit_ids: [] }] };
+  validateReport(base);
+  base.findings[0].codes = ['needs-review', 'contract-changed'];
+  validateReport(base);
+  base.findings[0].codes = ['<img onerror=x>'];
+  assert.throws(() => validateReport(base));
+});

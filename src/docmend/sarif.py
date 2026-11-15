@@ -23,7 +23,7 @@ def sarif(report: Report, sections: list[dict] | None = None) -> dict:
             'message': {'text': finding.heading + ': ' + finding.reason},
             'locations': [{'physicalLocation': physical}],
             'partialFingerprints': {'docmendSection/v1': digest(finding.section_id + ':' + finding.status)},
-            'properties': {'evidence': finding.evidence, 'requiresHumanReview': True},
+            'properties': {'evidence': finding.evidence, 'requiresHumanReview': True, 'codes': list(finding.codes)},
         })
     return {'version': '2.1.0', '$schema': 'https://json.schemastore.org/sarif-2.1.0.json', 'runs': [{
         'tool': {'driver': {'name': 'DocMend', 'rules': [

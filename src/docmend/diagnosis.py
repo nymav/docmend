@@ -322,7 +322,71 @@ def _valid_diagnosis(answer: dict) -> bool:
     return set(answer) == {"status", "reason", "confidence"} and answer["status"] in ("stale", "accurate", "uncertain") and isinstance(answer["reason"], str) and len(answer["reason"]) <= 4000 and type(answer["confidence"]) in (int, float) and 0 <= answer["confidence"] <= 1
 
 
+def _old_values(change: Change) -> list[str]:
+    old, new = change.before, change.after
+    if not old or not new or old.kind != new.kind:
+        return []
+    if old.kind == "config":
+        return [str(old.facts.get("value"))] if old.facts.get("value") != new.facts.get("value") else []
+    if old.kind == "function":
+        b, a = old.facts.get("params", {}), new.facts.get("params", {})
+        return [v for k, v in b.items() if v is not None and k in a and a[k] is not None and not _same_value(v, a[k])]
+    return []
+
+
+def reason_codes(section: Section, changes: list[Change], outcome: str, *, ambiguous: bool = False) -> list[str]:
+    codes = [outcome]
+    kinds = {"contract": "contract-changed", "behaviour": "behaviour-changed", "renamed": "renamed", "added": "added", "removed": "removed"}
+    codes += sorted({kinds[c.kind] for c in changes if c.kind in kinds})
+    if len(changes) > 1:
+        codes.append("multiple-changes")
+    if ambiguous:
+        codes.append("ambiguous-name")
+    if section.id.endswith("#docstring"):
+        codes.append("docstring")
+    if outcome not in ("fixed-declared-fact", "verified-current"):
+        facts = _facts(section.text, section.heading, section.path.endswith(".rst"))
+        covered = [(a, b) for a, b, _ in facts]
+        for c in changes:
+            for value in _old_values(c):
+                bare = _unquote(value) or value
+                for m in re.finditer(r"(?<![\w.])" + re.escape(bare) + r"(?![\w])", section.text):
+                    if not any(a <= m.start() < b for a, b in covered):
+                        codes.append("old-value-in-prose")
+                        break
+        if not facts:
+            codes.append("no-declared-fact")
+    return list(dict.fromkeys(codes))
+
+
 def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False, provider: ModelProvider | None = None, min_confidence: float = 0.0, require_agreement: bool = False) -> tuple[Finding, Edit | None]:
+    finding, edit = _diagnose(section, changes, ambiguous=ambiguous, provider=provider, min_confidence=min_confidence, require_agreement=require_agreement)
+    finding.codes = reason_codes(section, changes, _outcome(finding, edit), ambiguous=ambiguous)
+    return finding, edit
+
+
+def _outcome(finding: Finding, edit: Edit | None) -> str:
+    r = finding.reason
+    if finding.evidence == "static":
+        if finding.status == "stale" and edit:
+            return "fixed-declared-fact"
+        if finding.status == "accurate":
+            return "verified-current"
+        if "did not re-verify" in r:
+            return "reverify-failed"
+        if "Repeated definition" in r:
+            return "ambiguous-definition"
+        return "needs-review"
+    if "below the configured minimum" in r:
+        return "low-confidence"
+    if "second diagnosis disagreed" in r:
+        return "models-disagree"
+    if finding.status == "review" and ("rejected" in r or "draft " in r):
+        return "draft-rejected"
+    return {"stale": "model-stale", "accurate": "model-accurate"}.get(finding.status, "model-uncertain")
+
+
+def _diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False, provider: ModelProvider | None = None, min_confidence: float = 0.0, require_agreement: bool = False) -> tuple[Finding, Edit | None]:
     ids = sorted(c.unit.id for c in changes)
     if any(u and u.kind == "ambiguous" for c in changes for u in (c.before, c.after)):
         return Finding(section.id, section.path, section.heading, "review",

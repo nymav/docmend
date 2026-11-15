@@ -131,6 +131,7 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
             # Repairs are Markdown-only; report the docstring, never edit code.
             finding.reason += "; docstring repairs are not generated, update it by hand"
             edit = None
+            finding.codes = ["detected-stale" if c == "fixed-declared-fact" else c for c in finding.codes]
         if edit:
             try:
                 validate_edit(edit)
@@ -138,6 +139,7 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
                 finding.status = "review"
                 finding.reason += f"; correction rejected: {exc}"
                 edit = None
+                finding.codes = ["edit-rejected" if c == "fixed-declared-fact" else c for c in finding.codes]
         finding.fingerprint = finding_fingerprint(new_docs[sid], group)
         # Only review findings can be acknowledged; confirmed drift never is.
         finding.acknowledged = finding.status == "review" and (sid, finding.fingerprint) in (baseline or set())

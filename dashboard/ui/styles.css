@@ -20,3 +20,6 @@
 .trend-bar{display:block;height:6px;border-radius:3px;background:#548797;opacity:.7;min-width:2px}
 .trend-count{font-variant-numeric:tabular-nums;opacity:.8}
 .trends ol{margin:0;padding-left:16px}.trends li{margin:2px 0;overflow-wrap:anywhere}.trends .muted{opacity:.6;list-style:none;margin-left:-16px}
+
+.codes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.code-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line, #8884); }

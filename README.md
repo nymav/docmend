@@ -89,6 +89,37 @@ symbols remain analyzable. Strict review gates still fail on these coverage gaps
 report-only workflows can finish and upload the evidence. Invalid source syntax
 remains an operational error.
 
+
+### Reason codes
+
+Every finding carries `codes`: exactly one outcome code, plus codes for what changed and hints for the reviewer. They appear in `report.json`, `summary.md`, SARIF `properties.codes` and the dashboard.
+
+| Code | Meaning |
+|---|---|
+| `fixed-declared-fact` | A declared signature/default/config value was rewritten exactly from the new code |
+| `detected-stale` | A declared value is provably out of date, but no edit is generated for this kind of section |
+| `edit-rejected` | A computed edit failed the structural safety checks |
+| `verified-current` | The declared value in the doc already matches the new code |
+| `reverify-failed` | A rewrite was computed but did not re-check, so none is offered |
+| `ambiguous-definition` | The code defines this name more than once; the active one is not inferred |
+| `model-stale` | The model judged the section out of date |
+| `model-accurate` | The model judged the section still correct |
+| `model-uncertain` | The model could not decide |
+| `low-confidence` | The model's stale verdict was below min_stale_confidence |
+| `models-disagree` | Two model answers disagreed |
+| `draft-rejected` | A model draft failed mechanical checks or the critic |
+| `needs-review` | Linked code changed and no rule can prove the doc right or wrong |
+| `contract-changed` | Signature, default, type or config value changed |
+| `behaviour-changed` | Only the body changed; the interface is the same |
+| `renamed` | The unit was renamed with an identical body |
+| `added` | The unit is new |
+| `removed` | The unit was deleted |
+| `multiple-changes` | More than one linked unit changed; judged together |
+| `ambiguous-name` | The short name matches several units |
+| `docstring` | The section is a code docstring; DocMend never edits code |
+| `old-value-in-prose` | The old value still appears in the section outside any declared fact |
+| `no-declared-fact` | The section never states the value as Signature/Default, so it cannot be fixed automatically |
+
 ## Expanded evaluation (0.1.1)
 
 [Full evaluation report](docs/EVALUATION.md): 73 passing tests, about 90.8% executable-line coverage, 28 development + 24 reserved challenge + 12 source-backed mutation cases. The expanded development set exposed three wrong automatic repairs; these were fixed before challenge scoring. On the challenge split, 8/14 stale sections were automatically confirmed and repaired, six were deferred, and all ten accurate sections were unchanged. Eleven sections in total needed review. These are constructed cases, not a human-reviewed real-world accuracy estimate.

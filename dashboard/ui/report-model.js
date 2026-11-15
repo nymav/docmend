@@ -23,6 +23,7 @@ export function validateReport(raw) {
     path(f.path); text(f.heading, 'section heading', 10000); text(f.reason, 'diagnosis');
     text(f.section_id, 'section ID', 10000); text(f.evidence, 'evidence', 10000);
     array(f.unit_ids, 'symbol references').forEach(v => text(v, 'symbol', 10000));
+    if (f.codes !== undefined) array(f.codes, 'reason codes', 50).forEach(v => { if (!/^[a-z][a-z-]{1,40}$/.test(text(v, 'reason code', 64))) throw new Error('Invalid reason code.'); });
   }
   for (const e of array(raw.edits, 'edits')) {
     if (!e || !['safe', 'draft'].includes(e.mode)) throw new Error('Invalid edit mode.');

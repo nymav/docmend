@@ -53,6 +53,38 @@ class Change:
         return unit
 
 
+# Fixed vocabulary for Finding.codes. Exactly one outcome code per finding,
+# plus any number of change and hint codes. Teams filter or gate CI on these.
+REASON_CODES = {
+    # outcome
+    "fixed-declared-fact": "A declared signature/default/config value was rewritten exactly from the new code",
+    "detected-stale": "A declared value is provably out of date, but no edit is generated for this kind of section",
+    "edit-rejected": "A computed edit failed the structural safety checks",
+    "verified-current": "The declared value in the doc already matches the new code",
+    "reverify-failed": "A rewrite was computed but did not re-check, so none is offered",
+    "ambiguous-definition": "The code defines this name more than once; the active one is not inferred",
+    "model-stale": "The model judged the section out of date",
+    "model-accurate": "The model judged the section still correct",
+    "model-uncertain": "The model could not decide",
+    "low-confidence": "The model's stale verdict was below min_stale_confidence",
+    "models-disagree": "Two model answers disagreed",
+    "draft-rejected": "A model draft failed mechanical checks or the critic",
+    "needs-review": "Linked code changed and no rule can prove the doc right or wrong",
+    # what changed
+    "contract-changed": "Signature, default, type or config value changed",
+    "behaviour-changed": "Only the body changed; the interface is the same",
+    "renamed": "The unit was renamed with an identical body",
+    "added": "The unit is new",
+    "removed": "The unit was deleted",
+    "multiple-changes": "More than one linked unit changed; judged together",
+    "ambiguous-name": "The short name matches several units",
+    "docstring": "The section is a code docstring; DocMend never edits code",
+    # hints for reviewers
+    "old-value-in-prose": "The old value still appears in the section outside any declared fact",
+    "no-declared-fact": "The section never states the value as Signature/Default, so it cannot be fixed automatically",
+}
+
+
 @dataclass
 class Finding:
     section_id: str
@@ -67,6 +99,8 @@ class Finding:
     fingerprint: str = ""
     # True when a trusted baseline already acknowledged this exact review.
     acknowledged: bool = False
+    # Machine-readable reasons from a fixed vocabulary (see REASON_CODES).
+    codes: list[str] = field(default_factory=list)
 
 
 @dataclass

@@ -21,9 +21,9 @@ def summary(report: Report) -> dict:
 
 def markdown(report: Report) -> str:
     counts = summary(report)
-    lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", *(["> **Incomplete analysis.** Some linked sections were not checked; see Analysis limits.", ""] if report.incomplete else []), f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis |", "|---|---|---|---|"]
+    lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", *(["> **Incomplete analysis.** Some linked sections were not checked; see Analysis limits.", ""] if report.incomplete else []), f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis | Codes |", "|---|---|---|---|---|"]
     for finding in report.findings:
-        lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status + (' (acknowledged)' if finding.acknowledged else ''))} | {cell(finding.evidence)} | {cell(finding.reason)} |")
+        lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status + (' (acknowledged)' if finding.acknowledged else ''))} | {cell(finding.evidence)} | {cell(finding.reason)} | {cell(' '.join(finding.codes))} |")
     if not report.findings:
         lines += ["", "No mapped documentation drift was identified. This is not a claim of complete documentation accuracy."]
     if report.warnings:

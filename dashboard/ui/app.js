@@ -106,7 +106,9 @@ function renderDetail(visible) {
   }
   const heading = el('div', 'detail-heading'), title = el('div');
   title.append(el('h3', '', f.heading || 'Untitled section'), el('div', 'detail-path', f.path)); heading.append(title, badge(f.status)); d.append(heading);
-  const summary = el('div', 'diagnosis'); summary.append(el('strong', '', f.status === 'stale' ? 'Why this needs attention' : f.status === 'accurate' ? 'What was checked' : 'What to review'), el('p', '', f.reason)); d.append(summary);
+  const summary = el('div', 'diagnosis'); summary.append(el('strong', '', f.status === 'stale' ? 'Why this needs attention' : f.status === 'accurate' ? 'What was checked' : 'What to review'), el('p', '', f.reason));
+  if (f.codes?.length) { const tags = el('p', 'codes'); for (const c of f.codes) tags.append(el('code', 'code-tag', c)); summary.append(tags); }
+  d.append(summary);
   const changes = r.changes.filter(c => f.unit_ids.includes(c.unit));
   const evidence = el('section', 'evidence-section'); evidence.setAttribute('aria-label', 'Code evidence');
   evidence.append(sectionTitle('1', 'Code evidence', 'Compared commits'));
