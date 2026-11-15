@@ -1,4 +1,4 @@
-"""Python AST and TOML semantic contracts. Analysis does not execute source files."""
+"""Python AST, TOML and (optional) JavaScript/TypeScript semantic contracts. Analysis does not execute source files."""
 from __future__ import annotations
 
 import ast
@@ -8,6 +8,7 @@ import tomllib
 
 from .models import CodeUnit, DocMendError, digest
 from .adapters import parse_json
+from . import jsparse
 
 
 def _literal(node: ast.AST | None) -> str | None:
@@ -140,6 +141,9 @@ def parse_code(files: dict[str, str], *, review_duplicates: bool = False) -> dic
             units.extend(parse_json(path, text))
         elif path.endswith(".toml") and not path.endswith(".docmend.toml"):
             units.extend(parse_toml(path, text))
+        elif path.endswith(jsparse.JS_SUFFIXES) and jsparse.available():
+            # Without the optional extra these files are reported as coverage gaps.
+            units.extend(jsparse.parse_js(path, text))
     groups: dict[str, list[CodeUnit]] = {}
     for unit in units:
         groups.setdefault(unit.id, []).append(unit)
