@@ -81,10 +81,15 @@ def _same_value(doc: str, code: str) -> bool:
 def _in_doc_style(code: str, doc: str) -> str:
     """Write the new code literal the way the doc wrote the old one."""
     old, new = _literal_value(doc), _literal_value(code)
-    if isinstance(new, str) and isinstance(old, str) and doc.strip()[:1] in "'\"":
-        quote = doc.strip()[0]
-        if quote not in new and "\\" not in new and "\n" not in new:
-            return quote + new + quote
+    written = doc.strip()
+    if isinstance(new, str) and isinstance(old, str):
+        raw = written[:1] in "rR" and written[1:2] in "'\""
+        quote = written[1:2] if raw else written[:1]
+        if quote in "'\"" and quote and quote not in new and "\n" not in new and "\r" not in new:
+            if raw and not new.endswith("\\"):
+                return written[0] + quote + new + quote
+            if not raw and "\\" not in new:
+                return quote + new + quote
     if isinstance(new, float) and isinstance(old, float) and "e" in doc.lower() and "e" in code.lower():
         return re.sub(r"e([+-]?)0+(\d)", r"e\1\2", code)  # 1e-09 -> 1e-9 like the doc
     return code

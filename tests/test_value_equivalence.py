@@ -24,6 +24,8 @@ class SameValueTests(unittest.TestCase):
         self.assertEqual(_in_doc_style("'b'", '"a"'), '"b"')
         self.assertEqual(_in_doc_style('1e-09', '1e-6'), '1e-9')
         self.assertEqual(_in_doc_style('60', '30'), '60')
+        self.assertEqual(_in_doc_style("'^\\\\d{6}$'", "r'^\\d{4}$'"), "r'^\\d{6}$'")
+        self.assertEqual(_in_doc_style("'a\\\\'", "r'b'"), "'a\\\\'")
 
     def test_signature(self):
         self.assertEqual(_normal_signature('f(a, b = "x")'), _normal_signature("f(a, b='x')"))
