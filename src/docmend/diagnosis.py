@@ -56,6 +56,87 @@ def _declared_fact(text: str, offset: int, heading: str = "") -> bool:
     return bool(re.search(r"(?:signature|default(?: value)?|default configuration)\s*(?:is\s*)?:?\s*$", line, re.I))
 
 
+_NOT_LITERAL = object()
+
+
+def _literal_value(text: str):
+    try:
+        return ast.literal_eval(text.strip())
+    except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
+        return _NOT_LITERAL
+
+
+def _same_value(doc: str, code: str) -> bool:
+    """True when two literals mean the same value: 1e-6 == 1e-06, 'a' == "a"."""
+    a, b = _literal_value(doc), _literal_value(code)
+    if a is _NOT_LITERAL or b is _NOT_LITERAL:
+        return doc.strip() == code.strip()
+    if isinstance(a, bool) or isinstance(b, bool) or a is None or b is None:
+        return type(a) is type(b) and a == b  # True must not equal 1
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return a == b
+    return type(a) is type(b) and a == b
+
+
+def _in_doc_style(code: str, doc: str) -> str:
+    """Write the new code literal the way the doc wrote the old one."""
+    old, new = _literal_value(doc), _literal_value(code)
+    if isinstance(new, str) and isinstance(old, str) and doc.strip()[:1] in "'\"":
+        quote = doc.strip()[0]
+        if quote not in new and "\\" not in new and "\n" not in new:
+            return quote + new + quote
+    if isinstance(new, float) and isinstance(old, float) and "e" in doc.lower() and "e" in code.lower():
+        return re.sub(r"e([+-]?)0+(\d)", r"e\1\2", code)  # 1e-09 -> 1e-9 like the doc
+    return code
+
+
+def _normal_signature(snippet: str) -> str | None:
+    """Canonical `name(args)` for a documented signature, ignoring spacing/quotes."""
+    m = re.fullmatch(r"\s*(\w+)\s*(\(.*\))\s*", snippet, re.S)
+    if not m:
+        return None
+    try:
+        fn = ast.parse(f"def {m[1]}{m[2]}: pass").body[0]
+    except (SyntaxError, ValueError, RecursionError):
+        return None
+    return fn.name + "(" + ast.unparse(fn.args) + ")"
+
+
+def _restyle_defaults(snippet: str, before: dict, after: dict) -> str | None:
+    """Swap old default values written in a call/signature, keeping the doc's spelling."""
+    try:
+        call = ast.parse(snippet, mode="eval").body
+    except SyntaxError:
+        try:
+            fn = ast.parse(f"def {snippet}: pass").body[0]
+        except SyntaxError:
+            return None
+        args = fn.args.posonlyargs + fn.args.args
+        pairs = list(zip([a.arg for a in args[len(args) - len(fn.args.defaults):]], fn.args.defaults))
+        pairs += [(a.arg, d) for a, d in zip(fn.args.kwonlyargs, fn.args.kw_defaults) if d is not None]
+        shift = len("def ")
+    else:
+        if not isinstance(call, ast.Call):
+            return None
+        pairs = [(k.arg, k.value) for k in call.keywords if k.arg]
+        shift = 0
+    if set(before) != set(after):
+        return None  # A renamed/removed parameter is not a literal-default edit.
+    spans = []
+    for name, node in pairs:
+        previous, current = before.get(name), after.get(name)
+        if previous is None or current is None or _same_value(previous, current):
+            continue
+        a, b = node.col_offset - shift, node.end_col_offset - shift
+        written = snippet[a:b]
+        if _same_value(written, previous):
+            spans.append((a, b, _in_doc_style(current, written)))
+    result = snippet
+    for a, b, text in sorted(spans, reverse=True):
+        result = result[:a] + text + result[b:]
+    return result if spans else None
+
+
 def _unquote(value: str) -> str | None:
     try:
         parsed = ast.literal_eval(value)
@@ -81,10 +162,13 @@ def _config_match(unit, value: str, snippet: str, text: str):
         forms.append((bare, True))
     for name in names:
         separators = r"(\s*=\s*|\s+)" if name.startswith("-") else r"(\s*=\s*)"
+        m = re.fullmatch(re.escape(name) + separators + r"(.+?)\s*", snippet, re.S)
+        if not m:
+            continue
+        written = m[2]
         for form, unquoted in forms:
-            m = re.fullmatch(re.escape(name) + separators + re.escape(form), snippet)
-            if m:
-                return name, m[1], unquoted
+            if (written == form) if unquoted else _same_value(written, form):
+                return name, m[1], unquoted, written
     return None
 
 
@@ -101,37 +185,31 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
         if old.kind == "function":
             # Only rewrite exact documented signatures, or literal old defaults in
             # a call to this specific function. Narrative paraphrases stay review-only.
-            if snippet == old.facts["signature"]:
-                result = new.facts["signature"]
-            elif change.kind == "renamed":
+            is_signature = snippet == old.facts["signature"] or _normal_signature(snippet) == _normal_signature(old.facts["signature"])
+            if change.kind == "renamed" and not is_signature:
                 continue  # Renames only rewrite an exact documented signature.
-            elif not old.facts.get("language") and re.match(r"^" + re.escape(old.name.rsplit(".", 1)[-1]) + r"\(", snippet):
-                try:
-                    call = ast.parse(snippet, mode="eval").body
-                except SyntaxError:
-                    continue
-                if not isinstance(call, ast.Call):
-                    continue
-                before_params, after_params = old.facts["params"], new.facts["params"]
-                # A renamed/removed parameter is not a literal-default edit.
-                if set(before_params) != set(after_params):
-                    continue
-                for key, previous in before_params.items():
-                    current = after_params[key]
-                    if previous is None or current is None or previous == current:
-                        continue
-                    result = re.sub(r"(?<!\w)(" + re.escape(key) + r"\s*=\s*)" + re.escape(previous) + r"(?=\s*[,\)])", lambda m: m[1] + current, result)
+            styled = None
+            if change.kind != "renamed" and not old.facts.get("language") and "\n" not in snippet \
+                    and re.match(r"^" + re.escape(old.name.rsplit(".", 1)[-1]) + r"\(", snippet):
+                styled = _restyle_defaults(snippet, old.facts["params"], new.facts["params"])
+            if is_signature:
+                # Prefer the doc's own spelling when only default values moved;
+                # otherwise (params added/removed/renamed) write the new signature.
+                same_shape = styled is not None and _normal_signature(styled) == _normal_signature(new.facts["signature"])
+                result = styled if same_shape else new.facts["signature"]
+            elif styled is not None:
+                result = styled
             if result != snippet:
                 reasons.append("Documented call/default differs from the new AST contract")
         elif old.kind == "config":
             previous, current = old.facts.get("value"), new.facts.get("value")
             if previous is not None and current is not None:
                 match = _config_match(old, previous, snippet, section.text)
-                replacement = current
-                if match and match[2]:
-                    replacement = _unquote(current)  # keep the documented unquoted style
-                if match and replacement is not None:
-                    name, separator, _ = match
+                replacement = None
+                if match:
+                    replacement = _unquote(current) if match[2] else _in_doc_style(current, match[3])
+                if match and replacement is not None and not _same_value(previous, current):
+                    name, separator = match[0], match[1]
                     result = name + separator + replacement
                     reasons.append("Explicit documented config literal differs from the new value")
         if result != snippet:
@@ -154,7 +232,7 @@ def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
     snippets = [v for start, _, v in _inline(updated, section.path.endswith('.rst')) if _declared_fact(updated, start, section.heading)]
     if old.kind == "function":
         for snippet in snippets:
-            if snippet == new.facts["signature"]:
+            if snippet == new.facts["signature"] or _normal_signature(snippet) == _normal_signature(new.facts["signature"]):
                 return True
             if re.match(r"^" + re.escape(new.name.rsplit(".", 1)[-1]) + r"\(", snippet):
                 try:
@@ -162,8 +240,8 @@ def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
                 except SyntaxError:
                     return False
                 values = {k.arg: ast.unparse(k.value) for k in getattr(call, "keywords", []) if k.arg}
-                changed = {k for k, v in new.facts["params"].items() if v is not None and old.facts["params"].get(k) != v and k in values}
-                if changed and all(values[k] == new.facts["params"][k] for k in changed):
+                changed = {k for k, v in new.facts["params"].items() if v is not None and old.facts["params"].get(k) is not None and not _same_value(old.facts["params"][k], v) and k in values}
+                if changed and all(_same_value(values[k], new.facts["params"][k]) for k in changed):
                     return True
         return False
     if old.kind == "config":
