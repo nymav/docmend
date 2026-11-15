@@ -32,6 +32,9 @@ def validate_edit(edit: Edit) -> None:
     links = lambda text: re.findall(r"\]\(([^)]+)\)", text)
     if links(edit.before) != links(edit.after):
         raise DocMendError("Repair must preserve existing link targets")
+    refs = lambda text: sorted(re.findall(r"^ {0,3}\[[^\]]+\]:\s*\S+.*$", text, re.M))
+    if refs(edit.before) != refs(edit.after):
+        raise DocMendError("Repair must preserve reference-style link definitions")
     if edit.before.endswith("\n") != edit.after.endswith("\n"):
         raise DocMendError("Repair must preserve trailing newline convention")
     if len(edit.after) > max(1000, len(edit.before)*2):

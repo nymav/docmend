@@ -235,3 +235,27 @@ class DraftBindingTests(unittest.TestCase):
             p=self.draft_report(td,'docs/api.md#api','# API\n\nSignature: `fetch(url, timeout=60)` (reviewed).\n\n')
             with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['apply','--repo',td,'--report',str(p),'--include-drafts']),0)
             self.assertIn('(reviewed)',(Path(td)/'docs/api.md').read_text())
+
+class DraftMechanicalCheckTests(unittest.TestCase):
+    def run_draft(self,after,doc=None):
+        calls=[]
+        answers=[{'status':'stale','reason':'changed','confidence':1},{'after':after,'reason':'draft'},{'accurate':True,'preserves_unaffected':True,'reason':'ok'}]
+        class Fake:
+            def json(self,*a):calls.append(1);return answers[len(calls)-1]
+        before={**BEFORE,'docs/api.md':doc or BEFORE['docs/api.md']}
+        r,_=analyze_files(before,{**before,'api.py':'def fetch(url, timeout=60):\n    return "new"\n'},provider=Fake())
+        return r,len(calls)
+    def test_invented_identifier_rejected(self):
+        r,n=self.run_draft('# API\n\nSignature: `fetch(url, timeout=60, retries=3)`.\n\n')
+        self.assertFalse(r.edits);self.assertIn('retries',r.findings[0].reason);self.assertEqual(n,2)
+    def test_unrelated_inline_code_must_survive(self):
+        doc='# API\n\nSignature: `fetch(url, timeout=30)`. Set `LOG_LEVEL`.\n\n## Other\nUntouched.\n'
+        r,_=self.run_draft('# API\n\nSignature: `fetch(url, timeout=60)`.\n\n',doc)
+        self.assertFalse(r.edits);self.assertIn('LOG_LEVEL',r.findings[0].reason)
+    def test_supported_draft_passes(self):
+        r,n=self.run_draft('# API\n\nSignature: `fetch(url, timeout=60)` returns `"new"`.\n\n')
+        self.assertEqual(r.edits[0].mode,'draft');self.assertEqual(n,3)
+    def test_reference_links_preserved(self):
+        from docmend.models import Edit
+        e=Edit('s','a.md',0,2,'# A\nSee [x].\n\n[x]: https://a.example\n','# A\nSee [x].\n\n','h','draft','r','model')
+        with self.assertRaises(DocMendError):validate_edit(e)
