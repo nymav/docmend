@@ -47,6 +47,9 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
     old_units, new_units = parse_code(before, review_duplicates=True), parse_code(after, review_duplicates=True)
     budget.remaining()
     old_docs, new_docs = parse_docs(before), parse_docs(after)
+    if semantic and embedder is not None:
+        from .mapping import CachingEmbedder
+        embedder = CachingEmbedder(embedder)
     old_index = build_index(old_units, old_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold)
     new_index = build_index(new_units, new_docs, embedder=embedder if semantic else None, threshold=cfg.similarity_threshold)
     budget.remaining()
@@ -119,7 +122,7 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
         "embedding_model": cfg.embedding_model if semantic and embedder else None,
         "model_exchanges": list(getattr(provider, "exchanges", [])),
     }
-    new_index["operations"] = {"elapsed_ms": budget.elapsed_ms(), "provider_requests": getattr(provider or embedder, "request_count", 0), "runtime_limit_seconds": cfg.analysis_timeout_seconds, "provider_request_limit": cfg.max_provider_requests}
+    new_index["operations"] = {"elapsed_ms": budget.elapsed_ms(), "provider_requests": getattr(provider or getattr(embedder, "inner", embedder), "request_count", 0), "embedded_texts": getattr(embedder, "texts_sent", 0), "runtime_limit_seconds": cfg.analysis_timeout_seconds, "provider_request_limit": cfg.max_provider_requests}
     return report, new_index
 
 
