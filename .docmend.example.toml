@@ -24,3 +24,5 @@ min_stale_confidence = 0.0
 require_agreement = false
 # To analyze JSON config, add "*.json" to include above. Keep report/build
 # directories excluded to avoid treating generated artifacts as source config.
+# Also report stale function/class docstrings on signature changes (never edited).
+docstrings = false

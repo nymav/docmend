@@ -446,3 +446,19 @@ class EmbeddingCacheTests(unittest.TestCase):
             def embed(self,texts):return [[1.,float(len(t))] for t in texts]
         texts=['a','bb','a','ccc','bb']
         self.assertEqual(CachingEmbedder(Fake()).embed(texts),Fake().embed(texts))
+
+class DocstringTests(unittest.TestCase):
+    SRC='def fetch(url, timeout={}):\n    """Fetch a URL.\n\n    Default: `fetch(url, timeout=30)`.\n    """\n    return {}\n'
+    def test_off_by_default(self):
+        b={'api.py':self.SRC.format(30,'url')}
+        r,_=analyze_files(b,{'api.py':self.SRC.format(60,'url')})
+        self.assertFalse(r.findings)
+    def test_signature_change_flags_docstring_without_edit(self):
+        b={'api.py':self.SRC.format(30,'url')}
+        r,_=analyze_files(b,{'api.py':self.SRC.format(60,'url')},cfg=Config(docstrings=True))
+        self.assertEqual([f.section_id for f in r.findings],['api.py::fetch#docstring']);self.assertFalse(r.edits)
+        self.assertIn('by hand',r.findings[0].reason)
+    def test_body_change_does_not_flag_docstring(self):
+        b={'api.py':self.SRC.format(30,'url')}
+        r,_=analyze_files(b,{'api.py':self.SRC.format(30,'url + "/"')},cfg=Config(docstrings=True))
+        self.assertFalse(r.findings)

@@ -16,6 +16,33 @@ from .provider import ModelProvider
 from .repair import validate_edit
 
 
+def docstring_sections(files: dict[str, str], units: dict) -> dict:
+    """One section per function/class docstring, keyed '<path>::<name>#docstring'."""
+    import ast
+    from .models import Section, digest
+    sections = {}
+    for path, text in files.items():
+        if not path.endswith(".py"):
+            continue
+        try:
+            tree = ast.parse(text)
+        except (SyntaxError, ValueError, RecursionError):
+            continue
+        lines = text.splitlines(keepends=True)
+        def visit(node, prefix=""):
+            for child in getattr(node, "body", []):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    name = prefix + child.name
+                    first = child.body[0] if child.body else None
+                    if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str) and f"{path}::{name}" in units:
+                        sid = f"{path}::{name}#docstring"
+                        sections[sid] = Section(sid, path, f"{name} docstring", first.lineno - 1, first.end_lineno, "".join(lines[first.lineno-1:first.end_lineno]), digest(text))
+                    if isinstance(child, ast.ClassDef):
+                        visit(child, name + ".")
+        visit(tree)
+    return sections
+
+
 def finding_fingerprint(section, group) -> str:
     import json
     from .models import digest
@@ -74,6 +101,15 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
                 suspects[sid].append(change)
         if not sections:
             report.warnings.append(f"No documentation mapping for changed unit {change.unit.id}; coverage is incomplete")
+    if cfg.docstrings:
+        # A docstring documents its own unit. Only signature-level changes
+        # flag it; body edits would make every docstring noisy.
+        docstrings = docstring_sections(after, new_units)
+        for change in changes:
+            sid = f"{change.unit.id}#docstring"
+            if change.kind in ("contract", "renamed") and sid in docstrings:
+                suspects[sid].append(change)
+        new_docs = {**new_docs, **docstrings}
     selected = sorted(suspects)
     if len(suspects) > cfg.max_sections:
         # Check the most important sections and say loudly what was skipped,
@@ -91,6 +127,10 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
         group = suspects[sid]
         ambiguous = any(names[c.unit.name.rsplit(".", 1)[-1]] > 1 for c in group)
         finding, edit = diagnose(new_docs[sid], group, ambiguous=ambiguous, provider=provider, min_confidence=cfg.min_stale_confidence, require_agreement=cfg.require_agreement)
+        if edit and sid.endswith("#docstring"):
+            # Repairs are Markdown-only; report the docstring, never edit code.
+            finding.reason += "; docstring repairs are not generated, update it by hand"
+            edit = None
         if edit:
             try:
                 validate_edit(edit)

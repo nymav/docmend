@@ -31,6 +31,10 @@ class Config:
     # Ask the model twice; a "stale" verdict needs both answers to agree.
     require_agreement: bool = False
 
+    # Also check function/class docstrings when a signature changes. Docstring
+    # findings are review/stale reports only; DocMend never edits .py files.
+    docstrings: bool = False
+
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
         if p.is_absolute() or ".." in p.parts or "\\" in path:
@@ -62,6 +66,9 @@ class Config:
             raise DocMendError("min_stale_confidence must be a finite number in [0,1]")
         if type(cfg.require_agreement) is not bool:
             raise DocMendError("require_agreement must be true or false")
+
+        if type(cfg.docstrings) is not bool:
+            raise DocMendError("docstrings must be true or false")
         for key in ("endpoint", "model", "embedding_model", "api_key_env"):
             if not isinstance(getattr(cfg, key), str):
                 raise DocMendError(f"{key} must be a string")
