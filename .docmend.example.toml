@@ -29,3 +29,6 @@ docstrings = false
 
 # Monorepo package folders: docs inside one only link to code in the same folder.
 scopes = []
+
+# Never check CHANGELOG/CHANGES/HISTORY/NEWS/release notes: they record history.
+skip_history_docs = true

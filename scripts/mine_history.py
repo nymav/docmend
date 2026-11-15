@@ -24,6 +24,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from docmend.config import Config  # noqa: E402
 from docmend.docparse import parse_docs  # noqa: E402
 from docmend.models import DocMendError  # noqa: E402
 from docmend.pipeline import analyze_files  # noqa: E402
@@ -64,8 +65,17 @@ def later_edit(repo, commits, start, window, path, sid, text_now, cache, parsed)
     return None
 
 
-def doc_paths(repo, rev):
-    return [p for p in git(repo, "ls-tree", "-r", "--name-only", rev).splitlines() if p.endswith(DOC) and "/node_modules/" not in p]
+def repo_config(repo, rev, cache):
+    """The repository's own .docmend.toml at this commit, else defaults, as a real run would use."""
+    text = show(repo, rev, ".docmend.toml", cache)
+    try:
+        return Config.from_text(text) if text else Config()
+    except DocMendError:
+        return Config()
+
+
+def doc_paths(repo, rev, cfg):
+    return [p for p in git(repo, "ls-tree", "-r", "--name-only", rev).splitlines() if p.endswith(DOC) and cfg.accepts(p)]
 
 
 def main(argv=None) -> int:
@@ -74,6 +84,7 @@ def main(argv=None) -> int:
     ap.add_argument("--commits", type=int, default=400)
     ap.add_argument("--window", type=int, default=30)
     ap.add_argument("--output", default="artifacts/history")
+    ap.add_argument("--keep-history-docs", action="store_true", help="Also check changelogs (to measure their effect)")
     a = ap.parse_args(argv)
     repo = a.repo
     commits = git(repo, "rev-list", "--first-parent", "--no-merges", f"-n{a.commits}", "HEAD").split()[::-1]
@@ -85,15 +96,19 @@ def main(argv=None) -> int:
     for c in commits[1:]:
         parent = git(repo, "rev-parse", f"{c}^").strip()
         changed = git(repo, "diff", "--name-only", "--no-renames", parent, c).splitlines()
-        code = [p for p in changed if p.endswith(".py")]
+        cfg = repo_config(repo, c, cache)
+        if a.keep_history_docs:
+            from dataclasses import replace
+            cfg = replace(cfg, skip_history_docs=False)
+        code = [p for p in changed if p.endswith(".py") and cfg.accepts(p)]
         if not code:
             continue
         stats["code_commits"] += 1
-        docs = doc_paths(repo, c)
+        docs = doc_paths(repo, c, cfg)
         before = {p: t for p in code + docs if (t := show(repo, parent, p, cache)) is not None}
         after = {p: t for p in code + docs if (t := show(repo, c, p, cache)) is not None}
         try:
-            report, _ = analyze_files(before, after, base=parent, head=c)
+            report, _ = analyze_files(before, after, base=parent, head=c, cfg=cfg)
         except DocMendError as exc:
             stats["skipped_" + type(exc).__name__] += 1
             continue

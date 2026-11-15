@@ -69,6 +69,10 @@ def load_baseline(text: str | None) -> set[tuple[str, str]]:
 
 def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = "fixture-base", head: str = "fixture-head", cfg: Config | None = None, provider: ModelProvider | None = None, semantic: bool = False, embedder=None, budget: Budget | None = None, baseline: set[tuple[str, str]] | None = None) -> tuple[Report, dict]:
     cfg = cfg or Config()
+    if cfg.skip_history_docs:
+        from .config import is_history_doc
+        before = {p: t for p, t in before.items() if not is_history_doc(p)}
+        after = {p: t for p, t in after.items() if not is_history_doc(p)}
     budget = budget or Budget(cfg.analysis_timeout_seconds)
     budget.remaining()
     old_units, new_units = parse_code(before, review_duplicates=True), parse_code(after, review_duplicates=True)

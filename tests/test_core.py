@@ -477,3 +477,18 @@ class ScopeTests(unittest.TestCase):
     def test_invalid_scope_rejected(self):
         for bad in ['scopes = ["../x"]','scopes = ["pkg/*"]','scopes = "pkg"']:
             with self.assertRaises(DocMendError):Config.from_text(bad)
+
+
+class HistoryDocTests(unittest.TestCase):
+    def test_history_docs_are_skipped_by_default(self):
+        from docmend.config import is_history_doc
+        for p in ['CHANGELOG.md', 'CHANGES.rst', 'HISTORY.md', 'NEWS', 'docs/release-notes.md', 'docs/changelog/v2.md', 'whatsnew.rst']:
+            self.assertTrue(is_history_doc(p), p)
+            self.assertFalse(Config().accepts(p), p)
+        for p in ['README.md', 'docs/release-process.rst', 'docs/history_of_api.md', 'changes.py', 'docs/api.md']:
+            self.assertFalse(is_history_doc(p), p)
+        self.assertTrue(Config.from_text('skip_history_docs = false\n').accepts('CHANGELOG.md'))
+    def test_changelog_never_flagged(self):
+        b={**BEFORE,'CHANGELOG.md':'# 1.0\n\nSignature: `fetch(url, timeout=30)`.\n'}
+        r,_=analyze_files(b,{**b,'api.py':AFTER['api.py']})
+        self.assertEqual([f.path for f in r.findings],['docs/api.md'])
