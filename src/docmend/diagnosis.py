@@ -152,8 +152,7 @@ def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
                     return True
         return False
     if old.kind == "config":
-        literal = re.escape(new.name) + r"\s*=\s*" + re.escape(str(new.facts.get("value")))
-        return any(re.fullmatch(literal, v) for v in snippets)
+        return any(_config_match(new, str(new.facts.get("value")), v, updated) for v in snippets)
     return False
 
 def _draft_problem(section: Section, changes: list[Change], after: str) -> str | None:
