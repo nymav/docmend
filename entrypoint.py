@@ -58,6 +58,7 @@ def run():
         args=['publish','--repo',str(repo),'--base',base,'--head',head,'--output',out,'--repository',os.environ['GITHUB_REPOSITORY'],'--pr',str(pr['number'])]
         if llm:args+=['--llm']
         if semantic:args+=['--semantic']
+        if os.environ.get('INPUT_SUGGEST','false').lower()=='true':args+=['--suggest']
         publish_result=main(args)
         if publish_result:return publish_result
     return result

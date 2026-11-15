@@ -25,6 +25,9 @@ inputs:
   publish:
     description: Explicit same-repository PR publishing; never merges
     default: 'false'
+  suggest:
+    description: With publish, post repairs as GitHub suggestions on changed PR lines instead of opening a fix PR
+    default: 'false'
   bot-login:
     description: Publishing GitHub App bot login, used to identify summaries owned by this app
     default: github-actions[bot]

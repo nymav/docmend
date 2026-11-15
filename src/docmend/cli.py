@@ -38,6 +38,7 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--repository", required=True)
             sub.add_argument("--pr", type=int, required=True)
             sub.add_argument("--include-drafts", action="store_true")
+            sub.add_argument("--suggest", action="store_true", help="Post repairs as GitHub suggestions on changed PR lines instead of a fix PR")
     recovery = subs.add_parser("recover")
     recovery.add_argument("--repo", type=Path, default=Path.cwd())
     recovery.add_argument("--confirm-no-active-writer", action="store_true")
@@ -96,7 +97,11 @@ def main(argv: list[str] | None = None) -> int:
         save(store.root, args.output, report, graph, files)
         if args.command == "publish":
             token = os.environ.get("DOCMEND_GITHUB_TOKEN", "")
-            value = GitHub(args.repository, token, bot_login=os.environ.get("DOCMEND_BOT_LOGIN", "github-actions[bot]")).publish(args.pr, report, files, include_drafts=args.include_drafts)
+            client = GitHub(args.repository, token, bot_login=os.environ.get("DOCMEND_BOT_LOGIN", "github-actions[bot]"))
+            if args.suggest:
+                value = client.suggest(args.pr, report, include_drafts=args.include_drafts)
+            else:
+                value = client.publish(args.pr, report, files, include_drafts=args.include_drafts)
             print(json.dumps(value))
             return 0
         counts = summary(report)
