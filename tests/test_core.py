@@ -272,3 +272,15 @@ class ProvenanceAuditTests(unittest.TestCase):
             lines=(Path(td)/'.docmend/audit.log').read_text().splitlines();self.assertEqual(len(lines),1)
             rec=json.loads(lines[0]);self.assertEqual(rec['action'],'apply');self.assertEqual(rec['files'][0]['path'],'docs/api.md')
             self.assertNotIn('timeout',lines[0])
+
+class ShortNameLinkTests(unittest.TestCase):
+    def test_common_name_in_prose_does_not_link(self):
+        units=parse_code({'a.py':'def run(x=1):\n    return x\n'})
+        self.assertFalse(build_index(units,parse_docs({'a.md':'# Setup\nRun the tests, then run again.\n'}))['links'])
+    def test_common_name_in_code_links(self):
+        units=parse_code({'a.py':'def run(x=1):\n    return x\n'})
+        self.assertEqual(len(build_index(units,parse_docs({'a.md':'# Setup\nCall `run(x=1)`.\n'}))['links']),1)
+    def test_qualified_name_links_in_prose(self):
+        units=parse_code({'a.py':'class Job:\n    def run(self):\n        return 1\n'})
+        links=build_index(units,parse_docs({'a.md':'# Jobs\nJob.run starts work.\n'}))['links']
+        self.assertIn('a.py::Job.run',[l['unit'] for l in links])

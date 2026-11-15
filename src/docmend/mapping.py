@@ -18,12 +18,36 @@ def cosine(left: list[float], right: list[float]) -> float:
     return sum(a*b for a, b in zip(left, right)) / norm if norm else 0.0
 
 
+# Short or everyday symbol names appear in ordinary prose ("run the tests",
+# "the name field"). They only link when written as code or fully qualified.
+COMMON_WORDS = frozenset("""add app apply base build call check client close config create data debug default
+delete error execute file get handler help host id index info init items key list load main model name open
+parse path port process read reset result run save send server set start status stop test type update url
+user value version view write""".split())
+
+
+def weak_name(name: str) -> bool:
+    return len(name) <= 3 or name.lower() in COMMON_WORDS
+
+
+def _code_spans(text: str) -> str:
+    return "\n".join(re.findall(r"`([^`\r\n]+)`", text))
+
+
 def explicit(section: Section, unit: CodeUnit) -> bool:
-    names = [unit.name, unit.name.rsplit(".", 1)[-1]]
+    short = unit.name.rsplit(".", 1)[-1]
+    prose = [unit.name] if unit.name != short else []
+    # A dotted/qualified name is specific enough anywhere; a weak short name
+    # must appear inside inline code.
+    code_only = [short] if weak_name(short) else []
+    if not weak_name(short):
+        prose.append(short)
     if unit.kind == "function":
-        names += unit.facts.get("cli_names", [])
-        names += [m for decorator in unit.facts.get("decorators", []) for m in re.findall(r"['\"](/[^'\"]+)['\"]", decorator)]
-    return any(re.search(r"(?<![\w])" + re.escape(name) + r"(?![\w])", section.text) for name in names)
+        prose += unit.facts.get("cli_names", [])
+        prose += [m for decorator in unit.facts.get("decorators", []) for m in re.findall(r"['\"](/[^'\"]+)['\"]", decorator)]
+    pattern = lambda name: r"(?<![\w])" + re.escape(name) + r"(?![\w])"
+    spans = _code_spans(section.text) if code_only else ""
+    return any(re.search(pattern(n), section.text) for n in prose) or any(re.search(pattern(n), spans) for n in code_only)
 
 
 def build_index(units: dict[str, CodeUnit], sections: dict[str, Section], *, embedder: Embedder | None = None, threshold: float = .78) -> dict:
