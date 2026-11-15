@@ -30,6 +30,7 @@ class ModelProvider:
         self.cfg = cfg
         self.budget = budget or Budget(cfg.analysis_timeout_seconds)
         self.request_count = 0
+        self.exchanges: list[dict] = []  # sha256 of each prompt and answer; no text
         self.key = os.environ.get(cfg.api_key_env, "")
         if not self.key:
             raise DocMendError(f"Set {cfg.api_key_env} before selecting LLM mode")
@@ -78,7 +79,10 @@ class ModelProvider:
         )
         value = self.request("/chat/completions", {"model": self.cfg.model, "temperature": 0, "max_tokens": 4000, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": system}, {"role": "user", "content": body}]})
         try:
-            answer = json.loads(value["choices"][0]["message"]["content"])
+            content = value["choices"][0]["message"]["content"]
+            import hashlib
+            self.exchanges.append({"prompt_sha256": hashlib.sha256((system + "\0" + body).encode()).hexdigest(), "response_sha256": hashlib.sha256(str(content).encode()).hexdigest()})
+            answer = json.loads(content)
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise DocMendError("Malformed model output; no repair accepted") from exc
         if not isinstance(answer, dict):

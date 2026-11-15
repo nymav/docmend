@@ -89,6 +89,9 @@ class Report:
     edits: list[Edit] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     schema_version: int = 1
+    # Who/what produced this report: tool version, config hash, provider and
+    # model names, and hashes (never contents) of every model exchange.
+    provenance: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

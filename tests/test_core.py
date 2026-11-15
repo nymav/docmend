@@ -259,3 +259,16 @@ class DraftMechanicalCheckTests(unittest.TestCase):
         from docmend.models import Edit
         e=Edit('s','a.md',0,2,'# A\nSee [x].\n\n[x]: https://a.example\n','# A\nSee [x].\n\n','h','draft','r','model')
         with self.assertRaises(DocMendError):validate_edit(e)
+
+class ProvenanceAuditTests(unittest.TestCase):
+    def test_offline_provenance(self):
+        r,_=analyze_files(BEFORE,AFTER);p=r.provenance
+        self.assertEqual((p['mode'],p['model'],p['provider_host'],p['model_exchanges']),('offline',None,None,[]))
+        self.assertEqual(len(p['config_sha256']),64);self.assertIn('provenance',json.loads(r.to_json()))
+    def test_apply_writes_audit_line_without_text(self):
+        with tempfile.TemporaryDirectory() as td:
+            base,head=fixture(td);r,_,_=analyze_repository(GitStore(Path(td)),base,head)
+            apply_local(Path(td),r.edits)
+            lines=(Path(td)/'.docmend/audit.log').read_text().splitlines();self.assertEqual(len(lines),1)
+            rec=json.loads(lines[0]);self.assertEqual(rec['action'],'apply');self.assertEqual(rec['files'][0]['path'],'docs/api.md')
+            self.assertNotIn('timeout',lines[0])

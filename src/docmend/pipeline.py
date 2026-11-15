@@ -66,6 +66,20 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
     if not provider:
         report.warnings.append("Offline mode: behavioural and ambiguous changes are review findings, not LLM-verified decisions")
     budget.remaining()
+    from dataclasses import asdict as _asdict
+    from urllib.parse import urlsplit
+    from . import __version__
+    import json as _json
+    from .models import digest
+    report.provenance = {
+        "tool": "docmend", "version": __version__,
+        "config_sha256": digest(_json.dumps(_asdict(cfg), sort_keys=True, default=list)),
+        "mode": "llm" if provider else "offline", "semantic_mapping": bool(semantic and embedder),
+        "provider_host": urlsplit(cfg.endpoint).hostname if (provider or (semantic and embedder)) and cfg.endpoint else None,
+        "model": cfg.model if provider else None,
+        "embedding_model": cfg.embedding_model if semantic and embedder else None,
+        "model_exchanges": list(getattr(provider, "exchanges", [])),
+    }
     new_index["operations"] = {"elapsed_ms": budget.elapsed_ms(), "provider_requests": getattr(provider or embedder, "request_count", 0), "runtime_limit_seconds": cfg.analysis_timeout_seconds, "provider_request_limit": cfg.max_provider_requests}
     return report, new_index
 

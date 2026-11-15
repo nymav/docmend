@@ -8,7 +8,7 @@ import re
 import tempfile
 
 from .docparse import headings
-from .recovery import JOURNAL, write_journal, clear_journal, sync_directory
+from .recovery import JOURNAL, write_journal, clear_journal, sync_directory, audit
 from .models import DocMendError, Edit, digest
 
 
@@ -131,6 +131,11 @@ def apply_local(root: Path, edits: list[Edit], *, include_drafts: bool = False) 
             atomic_write(path, value)
         if journal_ready:
             clear_journal(root)
+        if written:
+            by_path = defaultdict(list)
+            for edit in selected:
+                by_path[edit.path].append({"section": edit.section_id, "mode": edit.mode, "evidence": edit.evidence})
+            audit(root, "apply", [{"path": name, "before_sha256": digest(originals[name]), "after_sha256": digest(replacements[name]), "edits": by_path[name]} for name in written])
         return written
     except Exception:
         for name in reversed(written):
