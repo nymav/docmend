@@ -60,12 +60,20 @@ def main(argv: list[str] | None = None) -> int:
                 raise DocMendError("Unsupported report schema")
             if store.resolve("HEAD") != raw["head"]:
                 raise DocMendError("HEAD differs from the analyzed commit")
-            report, _, _ = analyze_repository(store, raw["base"], raw["head"])
+            report, index, _ = analyze_repository(store, raw["base"], raw["head"])
             edits = [Edit(**e) for e in raw["edits"]]
             permitted = [asdict(e) for e in report.edits]
+            flagged = {f.section_id for f in report.findings if f.status in ("stale", "review")}
+            spans = {s["id"]: s for s in index.get("sections", [])}
             for edit in edits:
                 if edit.mode == "safe" and asdict(edit) not in permitted:
                     raise DocMendError("Safe repair is not reproducible from current code facts")
+                if edit.mode == "draft" and args.include_drafts:
+                    # A draft must target a section this commit range actually
+                    # flags, at that section's exact current span and text.
+                    span = spans.get(edit.section_id)
+                    if edit.section_id not in flagged or not span or (span["path"], span["start"], span["end"], span["text"], span["file_hash"]) != (edit.path, edit.start, edit.end, edit.before, edit.file_hash):
+                        raise DocMendError("Draft repair does not target a flagged section of the analyzed commits")
             written = apply_local(store.root, edits, include_drafts=args.include_drafts)
             print(json.dumps({"applied": written}))
             return 0
