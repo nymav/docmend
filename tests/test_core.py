@@ -284,3 +284,14 @@ class ShortNameLinkTests(unittest.TestCase):
         units=parse_code({'a.py':'class Job:\n    def run(self):\n        return 1\n'})
         links=build_index(units,parse_docs({'a.md':'# Jobs\nJob.run starts work.\n'}))['links']
         self.assertIn('a.py::Job.run',[l['unit'] for l in links])
+
+class LocalRenameTests(unittest.TestCase):
+    def semantic(self,src):return parse_code({'a.py':src})['a.py::f'].semantic
+    def test_local_rename_is_not_behaviour(self):
+        self.assertEqual(self.semantic('def f(x):\n    total = x + 1\n    return total\n'),self.semantic('def f(x):\n    result = x + 1\n    return result\n'))
+    def test_real_changes_still_differ(self):
+        base=self.semantic('def f(x):\n    total = x + 1\n    return total\n')
+        self.assertNotEqual(base,self.semantic('def f(x):\n    total = x + 2\n    return total\n'))
+        self.assertNotEqual(base,self.semantic('def f(x):\n    total = y + 1\n    return total\n'))
+    def test_globals_are_not_renamed(self):
+        self.assertNotEqual(self.semantic('def f():\n    global A\n    A = 1\n'),self.semantic('def f():\n    global B\n    B = 1\n'))
