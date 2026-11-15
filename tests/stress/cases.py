@@ -147,3 +147,33 @@ case("two-units-one-section", "stale", "review", fn("f(a, b=1)") + "\n" + fn("g(
 case("bool-not-number", "ok", "review", "FLAG = True\n", "FLAG = False\n", H("Default configuration: `FLAG = 1` means on."))
 case("pipes-and-html-in-doc", "stale", "fixed", fn("f(a, b='x|y')"), fn("f(a, b='x|z')"),
      H("Signature: `f(a, b='x|y')` <b>bold</b>.", "Weird | heading <i>"), H("Signature: `f(a, b='x|z')` <b>bold</b>.", "Weird | heading <i>"))
+
+# J. Real-world phrasing: "`name` defaults to `value`" (mined from click/typer/httpx/requests docs).
+FETCH = "fetch(url, timeout={})"
+case("phrase-defaults-to", "stale", "fixed", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("`fetch` sends a request. `timeout` defaults to `30`.", "fetch"), H("`fetch` sends a request. `timeout` defaults to `60`.", "fetch"))
+case("phrase-default-is", "stale", "fixed", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("For `fetch`, the default value is: `timeout` default is `30` seconds."), H("For `fetch`, the default value is: `timeout` default is `60` seconds."))
+case("phrase-paren-default", "stale", "fixed", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("- `timeout` (default: `30`) for `fetch` calls."), H("- `timeout` (default: `60`) for `fetch` calls."))
+case("phrase-quoted-value", "stale", "fixed", fn("read(path, encoding='utf-8')"), fn("read(path, encoding='latin-1')"),
+     H("`read` opens a file; `encoding` defaults to `\"utf-8\"`."), H("`read` opens a file; `encoding` defaults to `\"latin-1\"`."))
+case("phrase-unquoted-value", "stale", "fixed", fn("read(path, encoding='utf-8')"), fn("read(path, encoding='latin-1')"),
+     H("`read` opens a file; `encoding` defaults to `utf-8`."), H("`read` opens a file; `encoding` defaults to `latin-1`."))
+case("phrase-config", "stale", "fixed", "MAX_ITEMS = 100\n", "MAX_ITEMS = 250\n",
+     H("`MAX_ITEMS` defaults to `100`."), H("`MAX_ITEMS` defaults to `250`."))
+case("phrase-flag", "stale", "fixed", fn("fetch(url, retries=3)"), fn("fetch(url, retries=5)"),
+     H("`fetch`: `--retries` defaults to `3`."), H("`fetch`: `--retries` defaults to `5`."))
+# ...and the cases it must leave alone.
+case("phrase-other-function", "ok", "review", fn(FETCH.format(30)) + "\n" + fn("poll(job, timeout=30)"), fn(FETCH.format(60)) + "\n" + fn("poll(job, timeout=30)"),
+     H("Use `fetch` for pages.\n\nFor `poll`, `timeout` defaults to `30`.", "Client"))
+case("phrase-was", "ok", "review", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("`fetch` changed: `timeout` previously defaulted to `30`.", "fetch"))
+case("phrase-history-line", "ok", "review", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("In the old release, for `fetch`, `timeout` defaults to `30`.", "fetch"))
+case("phrase-value-differs", "stale", "review", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("`fetch`: `timeout` defaults to `45`.", "fetch"))
+case("phrase-no-backticks", "stale", "review", fn(FETCH.format(30)), fn(FETCH.format(60)),
+     H("For fetch, timeout defaults to 30.", "fetch"))
+case("phrase-cli-help-output", "stale", "review", fn("hello(name='World')"), fn("hello(name='Earth')"),
+     H("`hello` prints:\n\n```\n--name TEXT  [default: World]\n```", "hello"))

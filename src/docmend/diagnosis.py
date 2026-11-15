@@ -182,6 +182,63 @@ def _facts(text: str, heading: str, rst: bool = False):
     return sorted(found)
 
 
+_PHRASE = re.compile(
+    r"`(?P<subject>[^`\n]{1,80})`(?P<gap>[^`\n.;]{0,40}?)\b(?:defaults?\s+to|default(?:\s+value)?\s+is|default(?:\s+value)?:|\(default:?)\s*`(?P<value>[^`\n]{1,120})`",
+    re.I)
+
+
+def _phrased_values(section: Section, change: Change):
+    """`name` defaults to `value` sentences about this change, as (start, end, old, new).
+
+    Provable only when the subject in code formatting is exactly one changed
+    parameter of this function (or this config name), the sentence carries no
+    history/example wording, and the stated value equals the old value.
+    """
+    old, new = change.before, change.after
+    if change.kind != "contract" or not old or not new or old.kind != new.kind:
+        return []
+    if re.search(r"\b(?:history|changelog|archive|deprecated|migration)\b", section.heading, re.I):
+        return []
+    if old.kind == "function":
+        if old.facts.get("language"):
+            return []
+        b, a = old.facts.get("params", {}), new.facts.get("params", {})
+        if set(b) != set(a):
+            return []
+        subjects = {k: (b[k], a[k]) for k in b if b[k] is not None and a[k] is not None and not _same_value(b[k], a[k])}
+    elif old.kind == "config":
+        pv, cv = old.facts.get("value"), new.facts.get("value")
+        if pv is None or cv is None or _same_value(str(pv), str(cv)):
+            return []
+        short = old.name.rsplit(".", 1)[-1]
+        subjects = {old.name: (str(pv), str(cv))}
+        if old.facts.get("owner") and re.search(r"(?<!\w)" + re.escape(old.facts["owner"]) + r"(?!\w)", section.text):
+            subjects[short] = (str(pv), str(cv))
+    else:
+        return []
+    found = []
+    for m in _PHRASE.finditer(section.text):
+        line = section.text[section.text.rfind("\n", 0, m.start()) + 1:section.text.find("\n", m.end()) if "\n" in section.text[m.end():] else len(section.text)]
+        if re.search(_HISTORY, line, re.I) or re.search(r"\b(?:was|used to|previously|formerly|before)\b", m["gap"] + line, re.I):
+            continue
+        subject = m["subject"].strip().lstrip("-")
+        if subject not in subjects:
+            continue
+        # The sentence must be about this unit: its line or the heading names it,
+        # or the subject is the unit itself (a config name).
+        owner_name = (old.facts.get("owner") or old.name).rsplit(".", 1)[-1]
+        named = re.compile(r"(?<!\w)" + re.escape(owner_name) + r"(?!\w)")
+        if subject != old.name and not (named.search(line) or named.search(section.heading)):
+            continue
+        previous, current = subjects[subject]
+        written = m["value"]
+        if _same_value(written, previous):
+            found.append((m.start("value"), m.end("value"), previous, _in_doc_style(current, written)))
+        elif (_unquote(previous) or None) == written:
+            found.append((m.start("value"), m.end("value"), previous, _unquote(current) or current))
+    return found
+
+
 def _unquote(value: str) -> str | None:
     try:
         parsed = ast.literal_eval(value)
@@ -257,6 +314,11 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
                     reasons.append("Explicit documented config literal differs from the new value")
         if result != snippet:
             replacements.append((start, end, result))
+    for start, end, _, text in _phrased_values(section, change):
+        if not any(a < end and start < b for a, b, _ in replacements):
+            replacements.append((start, end, text))
+            reasons.append("Documented default stated in prose differs from the new value")
+    replacements.sort()
     if not replacements:
         return None
     updated = section.text
@@ -272,7 +334,17 @@ def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
     if _static_rewrite(after, change) is not None:
         return False  # Old facts remain after one pass; refuse a partial repair.
     old, new = change.before, change.after
+    from dataclasses import replace as _replace
+    before_phrases = _phrased_values(section, change)
+    if before_phrases:
+        # No phrased old value may remain after the rewrite.
+        if _phrased_values(_replace(section, text=updated), change):
+            return False
     snippets = [v for _, _, v in _facts(updated, section.heading, section.path.endswith('.rst'))]
+    if before_phrases:
+        # No old declared fact or phrased default remains (checked above), and
+        # each rewritten value was computed from the new contract.
+        return True
     if old.kind == "function":
         for snippet in snippets:
             if snippet == new.facts["signature"] or _normal_signature(snippet) == _normal_signature(new.facts["signature"]):
