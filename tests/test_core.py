@@ -393,3 +393,19 @@ class PartialResultTests(unittest.TestCase):
         from docmend.reporting import summary,markdown
         r,_=analyze_files({**BEFORE,'x.md':'# X\n`fetch(url, timeout=30)`\n'},{**AFTER,'x.md':'# X\n`fetch(url, timeout=30)`\n'},cfg=Config(max_sections=1))
         self.assertEqual(summary(r)['incomplete'],1);self.assertIn('Incomplete analysis',markdown(r))
+
+class StagedCheckTests(unittest.TestCase):
+    def test_staged_change_detected(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td);root=Path(td)
+            (root/'api.py').write_text('def fetch(url, timeout=90):\n    return url\n');git(td,'add','api.py')
+            with patch('sys.stdout',new_callable=io.StringIO) as out:code=main(['check','--repo',td,'--staged'])
+            self.assertEqual(code,2);self.assertEqual(json.loads(out.getvalue())['changed_units'],1)
+    def test_unstaged_edits_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td);(Path(td)/'api.py').write_text('def fetch(url, timeout=90):\n    return url\n')
+            with patch('sys.stdout',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td,'--staged','--fail-on','stale']),0)
+    def test_base_still_required_without_staged(self):
+        with tempfile.TemporaryDirectory() as td:
+            fixture(td)
+            with patch('sys.stderr',new_callable=io.StringIO):self.assertEqual(main(['check','--repo',td]),3)

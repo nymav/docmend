@@ -1,0 +1,12 @@
+# Use from another repository's .pre-commit-config.yaml:
+#   - repo: https://github.com/nymav/docmend
+#     rev: <tag or commit>
+#     hooks:
+#       - id: docmend
+- id: docmend
+  name: DocMend documentation drift
+  description: Check staged code changes for stale documentation (offline, read-only)
+  entry: docmend check --staged --output .docmend/precommit --fail-on stale
+  language: python
+  pass_filenames: false
+  always_run: true

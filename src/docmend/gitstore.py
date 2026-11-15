@@ -34,6 +34,13 @@ class GitStore:
             raise DocMendError("Expected an immutable commit identifier")
         return value
 
+    def staged_tree(self) -> str:
+        """Tree object for the staged index (adds only a tree object to .git)."""
+        value = self.run("write-tree").decode().strip()
+        if not re.fullmatch(r"[0-9a-f]{40,64}", value):
+            raise DocMendError("Could not read the staged index")
+        return value
+
     def snapshot(self, sha: str, cfg: Config) -> dict[str, str]:
         result: dict[str, str] = {}
         total = 0

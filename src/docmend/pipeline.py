@@ -125,7 +125,10 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
 
 def analyze_repository(store: GitStore, base_ref: str, head_ref: str, *, cfg: Config | None = None, llm: bool = False, semantic: bool = False) -> tuple[Report, dict, dict[str, str]]:
     store.budget = None  # A reused store starts a fresh analysis budget.
-    base, head = store.resolve(base_ref), store.resolve(head_ref)
+    base = store.resolve(base_ref)
+    # "STAGED" checks the index (what the next commit would contain), for
+    # pre-commit hooks. Its report is for checking only, not for apply.
+    head = store.staged_tree() if head_ref == "STAGED" else store.resolve(head_ref)
     # Read config from immutable base, not the untrusted PR working tree.
     cfg = cfg or store.trusted_config(base)
     budget = Budget(cfg.analysis_timeout_seconds)
