@@ -362,7 +362,33 @@ def reason_codes(section: Section, changes: list[Change], outcome: str, *, ambig
 def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False, provider: ModelProvider | None = None, min_confidence: float = 0.0, require_agreement: bool = False) -> tuple[Finding, Edit | None]:
     finding, edit = _diagnose(section, changes, ambiguous=ambiguous, provider=provider, min_confidence=min_confidence, require_agreement=require_agreement)
     finding.codes = reason_codes(section, changes, _outcome(finding, edit), ambiguous=ambiguous)
+    finding.card = evidence_card(section, changes, edit)
     return finding, edit
+
+
+def _unit_side(unit) -> dict | None:
+    if unit is None:
+        return None
+    shown = unit.facts.get("signature") if unit.kind == "function" else unit.facts.get("value") if unit.kind == "config" else None
+    return {"path": unit.path, "lines": [unit.line, unit.end_line], "kind": unit.kind,
+            "states": f"{unit.name} = {shown}" if unit.kind == "config" and shown is not None else shown or unit.name}
+
+
+def evidence_card(section: Section, changes: list[Change], edit: Edit | None) -> dict:
+    """Everything needed to verify the finding by hand, with line numbers."""
+    def doc_line(offset: int) -> int:
+        return section.start + section.text.count("\n", 0, offset) + 1
+    facts = [{"line": doc_line(a), "text": v} for a, b, v in _facts(section.text, section.heading, section.path.endswith(".rst"))]
+    card = {
+        "doc": {"path": section.path, "lines": [section.start + 1, section.end]},
+        "declared_facts": facts[:20],
+        "changes": [{"unit": c.unit.id, "change": c.kind, "before": _unit_side(c.before), "after": _unit_side(c.after)} for c in changes],
+    }
+    if edit is not None:
+        before = [l for l in edit.before.splitlines() if l not in edit.after.splitlines()]
+        after = [l for l in edit.after.splitlines() if l not in edit.before.splitlines()]
+        card["edit"] = {"mode": edit.mode, "removed": before[:10], "added": after[:10]}
+    return card
 
 
 def _outcome(finding: Finding, edit: Edit | None) -> str:

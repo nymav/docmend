@@ -101,6 +101,9 @@ class Finding:
     acknowledged: bool = False
     # Machine-readable reasons from a fixed vocabulary (see REASON_CODES).
     codes: list[str] = field(default_factory=list)
+    # Exact pointers a reviewer can check without rerunning anything: the doc
+    # lines, each declared fact found there, and the code lines on both sides.
+    card: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
