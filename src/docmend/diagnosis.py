@@ -142,6 +142,46 @@ def _restyle_defaults(snippet: str, before: dict, after: dict) -> str | None:
     return result if spans else None
 
 
+_HISTORY = r"\b(?:old|previous|former|formerly|historical|deprecated|obsolete|legacy|example|examples|override|e\.g\.)\b"
+
+
+def _fenced_facts(text: str, heading: str = ""):
+    """Single-line statements inside a Python code block that the doc declares as defaults.
+
+    The block must be ```python/```py and introduced by a line ending in
+    "Signature:", "Default(s):" or "Default configuration:". Lines with a
+    comment are skipped: comments usually say "override" or "example".
+    """
+    if re.search(r"\b(?:history|changelog|archive|deprecated|migration)\b", heading, re.I):
+        return
+    lines = text.splitlines(keepends=True)
+    offset, fence, declared, prose = 0, None, False, ""
+    for line in lines:
+        f = re.match(r"^ {0,3}(`{3,}|~{3,})\s*([\w+-]*)", line)
+        if fence is None and f:
+            fence = f[1]
+            declared = f[2].lower() in ("python", "py", "python3") and not re.search(_HISTORY, prose, re.I) \
+                and bool(re.search(r"(?:signature|defaults?(?: values?)?|default configuration)\s*(?:are|is)?\s*:\s*$", prose, re.I))
+        elif fence is not None and f and f[1][0] == fence[0] and len(f[1]) >= len(fence) and not line[f.end():].strip():
+            fence, declared = None, False
+        elif fence is not None:
+            body = line.rstrip("\r\n")
+            if declared and body.strip() and "#" not in body:
+                lead = len(body) - len(body.lstrip())
+                yield offset + lead, offset + len(body), body.strip()
+        elif line.strip():
+            prose = line.strip()
+        offset += len(line)
+
+
+def _facts(text: str, heading: str, rst: bool = False):
+    """Every declared fact: labelled inline code plus labelled Python block lines."""
+    found = [(a, b, v) for a, b, v in _inline(text, rst) if _declared_fact(text, a, heading)]
+    if not rst:
+        found += list(_fenced_facts(text, heading))
+    return sorted(found)
+
+
 def _unquote(value: str) -> str | None:
     try:
         parsed = ast.literal_eval(value)
@@ -183,9 +223,7 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
         return None
     replacements = []
     reasons = []
-    for start, end, snippet in _inline(section.text, section.path.endswith('.rst')):
-        if not _declared_fact(section.text, start, section.heading):
-            continue
+    for start, end, snippet in _facts(section.text, section.heading, section.path.endswith('.rst')):
         result = snippet
         if old.kind == "function":
             # Only rewrite exact documented signatures, or literal old defaults in
@@ -234,7 +272,7 @@ def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
     if _static_rewrite(after, change) is not None:
         return False  # Old facts remain after one pass; refuse a partial repair.
     old, new = change.before, change.after
-    snippets = [v for start, _, v in _inline(updated, section.path.endswith('.rst')) if _declared_fact(updated, start, section.heading)]
+    snippets = [v for _, _, v in _facts(updated, section.heading, section.path.endswith('.rst'))]
     if old.kind == "function":
         for snippet in snippets:
             if snippet == new.facts["signature"] or _normal_signature(snippet) == _normal_signature(new.facts["signature"]):
@@ -301,7 +339,7 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
             return Finding(section.id, section.path, section.heading, "stale", reason, ids, 1.0), Edit(section.id, section.path, section.start, section.end, section.text, after, section.file_hash, "safe", reason)
         old, new = changes[0].before, changes[0].after
         if old and new and old.kind == new.kind:
-            snippets = [value for start, _, value in _inline(section.text, section.path.endswith('.rst')) if _declared_fact(section.text, start, section.heading)]
+            snippets = [value for _, _, value in _facts(section.text, section.heading, section.path.endswith('.rst'))]
             current = False
             if old.kind == "function" and old.facts["signature"] != new.facts["signature"]:
                 current = new.facts["signature"] in snippets
