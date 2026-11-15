@@ -1,0 +1,10 @@
+# Optional JavaScript/TypeScript parsing (docmend[js]). Wheel hashes for CPython 3.12 on Linux x86_64 and aarch64.
+tree-sitter==0.26.1 \
+    --hash=sha256:7b14ac81a2afdcf75610f714f1d2eeaac40da93965c104cabb5c4c2b536a488a \
+    --hash=sha256:8ecef3db771e6f50a7010310056a54bca11279e0f10597fff78c215a879de965
+tree-sitter-javascript==0.25.0 \
+    --hash=sha256:9dc04ba91fc8583344e57c1f1ed5b2c97ecaaf47480011b92fbeab8dda96db75 \
+    --hash=sha256:199d09985190852e0912da2b8d26c932159be314bc04952cf917ed0e4c633e6b
+tree-sitter-typescript==0.23.2 \
+    --hash=sha256:e96d36b85bcacdeb8ff5c2618d75593ef12ebaf1b4eace3477e2bdb2abb1752c \
+    --hash=sha256:4b1eed5b0b3a8134e86126b00b743d667ec27c63fc9de1b7bb23168803879e31

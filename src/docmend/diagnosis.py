@@ -55,7 +55,7 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
             # a call to this specific function. Narrative paraphrases stay review-only.
             if snippet == old.facts["signature"]:
                 result = new.facts["signature"]
-            elif re.match(r"^" + re.escape(old.name.rsplit(".", 1)[-1]) + r"\(", snippet):
+            elif not old.facts.get("language") and re.match(r"^" + re.escape(old.name.rsplit(".", 1)[-1]) + r"\(", snippet):
                 try:
                     call = ast.parse(snippet, mode="eval").body
                 except SyntaxError:

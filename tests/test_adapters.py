@@ -22,7 +22,7 @@ class AdapterTests(unittest.TestCase):
         for text in ('{"a":1,"a":2}','{"a":NaN}','{"a":1} trailing','{"a":}'):
             with self.assertRaises(DocMendError):parse_json('a.json',text)
     def test_unknown_changed_language_warns(self):
-        report,_=analyze_files({'api.ts':'old'},{'api.ts':'new'})
+        report,_=analyze_files({'api.go':'old'},{'api.go':'new'})
         self.assertTrue(any('unsupported changed source' in w for w in report.warnings))
     def test_repository_reports_default_excluded_languages(self):
         from pathlib import Path
