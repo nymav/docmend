@@ -91,6 +91,34 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
     return updated, "; ".join(sorted(set(reasons)))
 
 
+def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
+    """Re-read the repaired text and confirm it now states the new contract."""
+    from dataclasses import replace
+    after = replace(section, text=updated)
+    if _static_rewrite(after, change) is not None:
+        return False  # Old facts remain after one pass; refuse a partial repair.
+    old, new = change.before, change.after
+    snippets = [v for start, _, v in _inline(updated) if _declared_fact(updated, start, section.heading)]
+    if old.kind == "function":
+        for snippet in snippets:
+            if snippet == new.facts["signature"]:
+                return True
+            if re.match(r"^" + re.escape(new.name.rsplit(".", 1)[-1]) + r"\(", snippet):
+                try:
+                    call = ast.parse(snippet, mode="eval").body
+                except SyntaxError:
+                    return False
+                values = {k.arg: ast.unparse(k.value) for k in getattr(call, "keywords", []) if k.arg}
+                changed = {k for k, v in new.facts["params"].items() if v is not None and old.facts["params"].get(k) != v and k in values}
+                if changed and all(values[k] == new.facts["params"][k] for k in changed):
+                    return True
+        return False
+    if old.kind == "config":
+        literal = re.escape(new.name) + r"\s*=\s*" + re.escape(str(new.facts.get("value")))
+        return any(re.fullmatch(literal, v) for v in snippets)
+    return False
+
+
 def context(section: Section, changes: list[Change]) -> dict[str, Any]:
     return {"documentation": section.text, "changes": [{"kind": c.kind, "unit": c.unit.id, "before": c.before.source if c.before else None, "after": c.after.source if c.after else None} for c in changes]}
 
@@ -107,6 +135,8 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
         rewrite = _static_rewrite(section, changes[0])
         if rewrite:
             after, reason = rewrite
+            if not _verify_rewrite(section, after, changes[0]):
+                return Finding(section.id, section.path, section.heading, "review", reason + "; repaired text did not re-verify against the new contract, so no repair is offered", ids), None
             return Finding(section.id, section.path, section.heading, "stale", reason, ids, 1.0), Edit(section.id, section.path, section.start, section.end, section.text, after, section.file_hash, "safe", reason)
         old, new = changes[0].before, changes[0].after
         if old and new and old.kind == new.kind:

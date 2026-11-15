@@ -204,3 +204,17 @@ class ParsingAccuracyTests(unittest.TestCase):
         units=parse_code({'a.toml':'name = "x"\n\n[http]\nretries = 2\ntimeout = 30\n'})
         self.assertEqual((units['a.toml::http.timeout'].line,units['a.toml::http.timeout'].end_line),(5,5))
         self.assertEqual(units['a.toml::name'].line,1)
+
+class RepairReverificationTests(unittest.TestCase):
+    def test_safe_repair_reverifies(self):
+        from docmend.diagnosis import _verify_rewrite
+        from docmend.changes import classify
+        r,_=analyze_files(BEFORE,AFTER);self.assertEqual(r.edits[0].mode,'safe')
+        change=classify(parse_code(BEFORE),parse_code(AFTER))[0]
+        section=parse_docs(AFTER)['docs/api.md#api']
+        self.assertTrue(_verify_rewrite(section,r.edits[0].after,change))
+        self.assertFalse(_verify_rewrite(section,section.text,change))
+    def test_unverifiable_rewrite_is_deferred(self):
+        with patch('docmend.diagnosis._verify_rewrite',return_value=False):
+            r,_=analyze_files(BEFORE,AFTER)
+        self.assertFalse(r.edits);self.assertEqual(r.findings[0].status,'review');self.assertIn('re-verify',r.findings[0].reason)
