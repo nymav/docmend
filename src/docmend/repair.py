@@ -7,7 +7,7 @@ import os
 import re
 import tempfile
 
-from .docparse import headings
+from .docparse import DOC_SUFFIXES, headings, rst_heading_styles
 from .recovery import JOURNAL, write_journal, clear_journal, sync_directory, audit
 from .models import DocMendError, Edit, digest
 
@@ -16,16 +16,25 @@ def validate_edit(edit: Edit) -> None:
     if not isinstance(edit.path, str) or type(edit.start) is not int or type(edit.end) is not int or not all(isinstance(x,str) for x in (edit.before,edit.after,edit.file_hash)):
         raise DocMendError("Malformed repair field types")
     p = PurePosixPath(edit.path)
-    if p.is_absolute() or ".." in p.parts or "\\" in edit.path or not edit.path.endswith((".md", ".mdx")) or any(x == ".git" for x in p.parts):
-        raise DocMendError("Repair target must be a repository-relative Markdown file")
+    if p.is_absolute() or ".." in p.parts or "\\" in edit.path or not edit.path.endswith(DOC_SUFFIXES) or any(x == ".git" for x in p.parts):
+        raise DocMendError("Repair target must be a repository-relative Markdown or reStructuredText file")
     if edit.mode not in ("safe", "draft") or edit.evidence not in ("static", "model"):
         raise DocMendError("Unknown repair mode/evidence")
     if edit.mode == "safe" and edit.evidence != "static":
         raise DocMendError("Model-only edits cannot be automatically approved")
     if edit.start < 0 or edit.end <= edit.start or edit.before == edit.after or not edit.after.strip():
         raise DocMendError("Invalid or empty repair span")
-    if [h for _, h in headings(edit.before)] != [h for _, h in headings(edit.after)]:
+    rst = edit.path.endswith(".rst")
+    titles = (lambda t: [(h, st) for _, h, st in rst_heading_styles(t)]) if rst else (lambda t: [h for _, h in headings(t)])
+    if titles(edit.before) != titles(edit.after):
         raise DocMendError("Repair must preserve section headings")
+    if rst:
+        blocks = lambda t: re.findall(r"^\s*\.\.\s.*$|^.*::[ \t]*$", t, re.M)
+        if blocks(edit.before) != blocks(edit.after):
+            raise DocMendError("Repair must preserve reStructuredText directives and literal blocks")
+        targets = lambda t: re.findall(r"<([^<>\s]+)>`_{1,2}", t)
+        if targets(edit.before) != targets(edit.after):
+            raise DocMendError("Repair must preserve existing link targets")
     fences = lambda text: re.findall(r"^ {0,3}(?:`{3,}|~{3,}).*$", text, re.M)
     if fences(edit.before) != fences(edit.after):
         raise DocMendError("Repair must preserve code fence structure")

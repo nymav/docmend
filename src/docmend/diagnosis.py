@@ -9,8 +9,23 @@ from .models import Change, DocMendError, Edit, Finding, Section
 from .provider import ModelProvider
 
 
-def _inline(text: str):
+def _inline_rst(text: str):
+    # reST inline literals are ``double backticks``; literal blocks are skipped.
+    from .docparse import literal_lines
+    hidden = literal_lines(text)
+    offset = 0
+    for i, line in enumerate(text.splitlines(keepends=True)):
+        if i not in hidden and not re.match(r"^\s*\.\.\s", line):
+            for m in re.finditer(r"``([^`\r\n]+)``", line):
+                yield offset + m.start(1), offset + m.end(1), m[1]
+        offset += len(line)
+
+
+def _inline(text: str, rst: bool = False):
     # Ignore fenced code blocks and code spans containing newlines.
+    if rst:
+        yield from _inline_rst(text)
+        return
     fence = None
     offset = 0
     hidden = [(m.start(), m.end()) for m in re.finditer(r"<!--.*?(?:-->|$)", text, re.S)]
@@ -79,7 +94,7 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
         return None
     replacements = []
     reasons = []
-    for start, end, snippet in _inline(section.text):
+    for start, end, snippet in _inline(section.text, section.path.endswith('.rst')):
         if not _declared_fact(section.text, start, section.heading):
             continue
         result = snippet
@@ -136,7 +151,7 @@ def _verify_rewrite(section: Section, updated: str, change: Change) -> bool:
     if _static_rewrite(after, change) is not None:
         return False  # Old facts remain after one pass; refuse a partial repair.
     old, new = change.before, change.after
-    snippets = [v for start, _, v in _inline(updated) if _declared_fact(updated, start, section.heading)]
+    snippets = [v for start, _, v in _inline(updated, section.path.endswith('.rst')) if _declared_fact(updated, start, section.heading)]
     if old.kind == "function":
         for snippet in snippets:
             if snippet == new.facts["signature"]:
@@ -159,8 +174,8 @@ def _draft_problem(section: Section, changes: list[Change], after: str) -> str |
     """Deterministic checks a model draft must pass before any critic sees it."""
     import builtins
     import keyword
-    before_snippets = [v for _, _, v in _inline(section.text)]
-    after_snippets = [v for _, _, v in _inline(after)]
+    before_snippets = [v for _, _, v in _inline(section.text, section.path.endswith('.rst'))]
+    after_snippets = [v for _, _, v in _inline(after, section.path.endswith('.rst'))]
     names = {c.unit.name.rsplit(".", 1)[-1] for c in changes}
     # Inline code unrelated to the changed units must survive unchanged.
     for snippet in before_snippets:
@@ -203,7 +218,7 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
             return Finding(section.id, section.path, section.heading, "stale", reason, ids, 1.0), Edit(section.id, section.path, section.start, section.end, section.text, after, section.file_hash, "safe", reason)
         old, new = changes[0].before, changes[0].after
         if old and new and old.kind == new.kind:
-            snippets = [value for start, _, value in _inline(section.text) if _declared_fact(section.text, start, section.heading)]
+            snippets = [value for start, _, value in _inline(section.text, section.path.endswith('.rst')) if _declared_fact(section.text, start, section.heading)]
             current = False
             if old.kind == "function" and old.facts["signature"] != new.facts["signature"]:
                 current = new.facts["signature"] in snippets

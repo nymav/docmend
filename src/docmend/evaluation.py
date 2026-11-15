@@ -118,7 +118,7 @@ def evaluate(cases,*,repeats=3):
         for c in cases:
             cfg=case_config(c);after={p:t for p,t in c['after'].items() if cfg.accepts(p)};sections=parse_docs(after)
             truth={(x['path'],x['heading']):x for x in c['labels']}
-            gold_sections=parse_docs({p:t for p,t in c['gold_files'].items() if p.endswith(('.md','.mdx'))})
+            gold_sections=parse_docs({p:t for p,t in c['gold_files'].items() if p.endswith(('.md','.mdx','.rst'))})
             gold_by_key={(s.path,s.heading):s.text for s in gold_sections.values()}
             try:
                 # Timed repeated calls are not model repeats or a production load test.
