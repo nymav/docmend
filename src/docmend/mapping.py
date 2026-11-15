@@ -57,7 +57,21 @@ def weak_name(name: str) -> bool:
 
 
 def _code_spans(text: str) -> str:
-    return "\n".join(re.findall(r"`([^`\r\n]+)`", text))
+    """Inline code plus the bodies of fenced and reST literal code blocks."""
+    spans = re.findall(r"`([^`\r\n]+)`", text)
+    fence = None
+    for line in text.splitlines():
+        f = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if f and fence is None:
+            fence = f[1]
+        elif f and fence and f[1][0] == fence[0] and len(f[1]) >= len(fence) and not line[f.end():].strip():
+            fence = None
+        elif fence:
+            spans.append(line)
+    from .docparse import literal_lines
+    lines = text.splitlines()
+    spans += [lines[i] for i in sorted(literal_lines(text))]
+    return "\n".join(spans)
 
 
 def _words(key: str, text: str, cache: dict | None) -> frozenset:
