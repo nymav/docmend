@@ -11,7 +11,7 @@ from .models import DocMendError
 
 @dataclass(frozen=True)
 class Config:
-    include: tuple[str, ...] = ("*.py", "*.md", "*.mdx", "*.toml")
+    include: tuple[str, ...] = ("*.py", "*.md", "*.mdx", "*.rst", "*.toml")
     exclude: tuple[str, ...] = (".git/*", "tests/*", "test/*", "*/tests/*", "*/test_*", ".venv/*", "venv/*", "node_modules/*", "vendor/*")
     max_files: int = 2000
     max_file_bytes: int = 500_000

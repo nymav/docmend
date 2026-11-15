@@ -45,7 +45,7 @@ def recover_local(root: Path, *, confirm_no_active_writer: bool = False) -> list
         # All files must pass preflight before restoring any file.
         for entry in entries:
             name=entry['path'];path=safe_path(root,name)
-            if name in seen or not name.endswith(('.md','.mdx')):raise ValueError()
+            if name in seen or not name.endswith(('.md','.mdx','.rst')):raise ValueError()
             seen.add(name)
             if digest(entry['before'])!=entry['before_hash']:raise ValueError()
             current=digest(path.read_bytes().decode('utf-8'))

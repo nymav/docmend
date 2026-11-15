@@ -6,7 +6,7 @@ import json
 import re
 from .models import CodeUnit, DocMendError, digest
 
-SUPPORTED_SUFFIXES = ('.py', '.toml', '.json', '.md', '.mdx')
+SUPPORTED_SUFFIXES = ('.py', '.toml', '.json', '.md', '.mdx', '.rst')
 
 
 def parse_json(path: str, text: str) -> list[CodeUnit]:

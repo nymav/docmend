@@ -1,4 +1,4 @@
-include = ["*.py", "*.md", "*.mdx", "*.toml"]
+include = ["*.py", "*.md", "*.mdx", "*.rst", "*.toml"]
 exclude = ["tests/*", "*/tests/*", "*/test_*", ".venv/*", "node_modules/*", "vendor/*"]
 max_files = 2000
 max_sections = 100

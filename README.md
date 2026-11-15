@@ -79,7 +79,7 @@ Forks are read-only. `pull_request_target` is refused. Do not run PR-controlled 
 - `artifacts/docatlas-integration/`: real DocAtlas source snapshot, a controlled numeric-default change, an added declaration fixture, guarded repair and original-base recheck. Existing review findings remain visible.
 - [Requirements matrix](docs/REQUIREMENTS.md): all 18 guide steps mapped to implementation, deliberate changes and pending release work.
 
-Supported semantic inputs: Python AST, module-level uppercase config assignments and TOML keys. Python function signatures, class schemas, endpoint decorators and common CLI decorators are inspected statically. Markdown/MDX section boundaries are fence-aware. Complex dynamic configuration, runtime-discovered APIs, arbitrary languages, semantic entailment of all prose and undocumented features are outside automatic-repair guarantees.
+Supported semantic inputs: Python AST, module-level uppercase config assignments and TOML keys. Python function signatures, class schemas, endpoint decorators and common CLI decorators are inspected statically. Markdown/MDX section boundaries are fence-aware. reStructuredText (`.rst`) sections use underline/overline headings, skip literal blocks and directives, and read inline literals written as double backticks. Complex dynamic configuration, runtime-discovered APIs, arbitrary languages, semantic entailment of all prose and undocumented features are outside automatic-repair guarantees.
 
 Repeated Python definitions and reassigned uppercase names are retained as ambiguous
 evidence rather than aborting a repository scan. Members of repeated classes are

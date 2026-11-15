@@ -9,8 +9,23 @@ from .models import Change, DocMendError, Edit, Finding, Section
 from .provider import ModelProvider
 
 
-def _inline(text: str):
+def _inline_rst(text: str):
+    # reST inline literals are ``double backticks``; literal blocks are skipped.
+    from .docparse import literal_lines
+    hidden = literal_lines(text)
+    offset = 0
+    for i, line in enumerate(text.splitlines(keepends=True)):
+        if i not in hidden and not re.match(r"^\s*\.\.\s", line):
+            for m in re.finditer(r"``([^`\r\n]+)``", line):
+                yield offset + m.start(1), offset + m.end(1), m[1]
+        offset += len(line)
+
+
+def _inline(text: str, rst: bool = False):
     # Ignore fenced code blocks and code spans containing newlines.
+    if rst:
+        yield from _inline_rst(text)
+        return
     fence = None
     offset = 0
     hidden = [(m.start(), m.end()) for m in re.finditer(r"<!--.*?(?:-->|$)", text, re.S)]
@@ -46,7 +61,7 @@ def _static_rewrite(section: Section, change: Change) -> tuple[str, str] | None:
         return None
     replacements = []
     reasons = []
-    for start, end, snippet in _inline(section.text):
+    for start, end, snippet in _inline(section.text, section.path.endswith('.rst')):
         if not _declared_fact(section.text, start, section.heading):
             continue
         result = snippet
@@ -109,7 +124,7 @@ def diagnose(section: Section, changes: list[Change], *, ambiguous: bool = False
             return Finding(section.id, section.path, section.heading, "stale", reason, ids, 1.0), Edit(section.id, section.path, section.start, section.end, section.text, after, section.file_hash, "safe", reason)
         old, new = changes[0].before, changes[0].after
         if old and new and old.kind == new.kind:
-            snippets = [value for start, _, value in _inline(section.text) if _declared_fact(section.text, start, section.heading)]
+            snippets = [value for start, _, value in _inline(section.text, section.path.endswith('.rst')) if _declared_fact(section.text, start, section.heading)]
             current = False
             if old.kind == "function" and old.facts["signature"] != new.facts["signature"]:
                 current = new.facts["signature"] in snippets
