@@ -62,6 +62,62 @@ class GitHub:
             raise DocMendError("PR changed since analysis; recompute before publishing")
         return pull
 
+    def _pr_hunks(self, number: int) -> dict[str, list[tuple[int, int]]]:
+        """New-side line ranges (1-based, inclusive) changed in the PR, per file."""
+        import re
+        hunks: dict[str, list[tuple[int, int]]] = {}
+        for page in range(1, 31):
+            files = self.request("GET", f"/pulls/{number}/files?per_page=100&page={page}")
+            if not isinstance(files, list):
+                raise DocMendError("Invalid PR files response")
+            for f in files:
+                for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", f.get("patch") or "", re.M):
+                    start, count = int(m[1]), int(m[2] or 1)
+                    if count:
+                        hunks.setdefault(f["filename"], []).append((start, start + count - 1))
+            if len(files) < 100:
+                break
+        return hunks
+
+    def suggest(self, number: int, report: Report, *, include_drafts: bool = False) -> dict:
+        """Post repairs as one-click GitHub suggestions on the PR's own diff.
+
+        GitHub only accepts review comments on lines the PR changed, so an edit
+        is suggested only when its whole section lies inside one changed hunk;
+        the rest are counted as skipped (use the draft fix PR for those).
+        """
+        if type(number) is not int or number < 1:
+            raise DocMendError("Invalid PR number")
+        self.verify_source(number, report)
+        marker = f"<!-- docmend-suggestions:v1:{report.head} -->"
+        for page in range(1, 11):
+            reviews = self.request("GET", f"/pulls/{number}/reviews?per_page=100&page={page}")
+            if not isinstance(reviews, list):
+                raise DocMendError("Invalid reviews response")
+            if any(marker in (r.get("body") or "") and r.get("user", {}).get("login") == self.bot_login for r in reviews):
+                return {"review": "already posted", "suggested": 0, "skipped": 0}
+            if len(reviews) < 100:
+                break
+        hunks = self._pr_hunks(number)
+        comments, skipped = [], 0
+        for edit in report.edits:
+            if edit.mode != "safe" and not include_drafts:
+                continue
+            first, last = edit.start + 1, edit.end
+            if any(a <= first and last <= b for a, b in hunks.get(edit.path, [])):
+                body = f"DocMend ({edit.mode}, {edit.evidence}): {edit.reason}\n\n````suggestion\n{edit.after.rstrip(chr(10))}\n````"
+                comment = {"path": edit.path, "line": last, "side": "RIGHT", "body": body}
+                if first < last:
+                    comment.update({"start_line": first, "start_side": "RIGHT"})
+                comments.append(comment)
+            else:
+                skipped += 1
+        if not comments:
+            return {"review": None, "suggested": 0, "skipped": skipped}
+        self.verify_source(number, report)
+        review = self.request("POST", f"/pulls/{number}/reviews", {"commit_id": report.head, "event": "COMMENT", "body": marker + "\nDocMend suggested documentation repairs. Review each before accepting.", "comments": comments})
+        return {"review": review.get("html_url"), "suggested": len(comments), "skipped": skipped}
+
     def publish(self, number: int, report: Report, files: dict[str, str], *, include_drafts: bool = False) -> dict:
         if type(number) is not int or number < 1:
             raise DocMendError("Invalid PR number")

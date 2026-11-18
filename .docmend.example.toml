@@ -1,4 +1,4 @@
-include = ["*.py", "*.md", "*.mdx", "*.toml"]
+include = ["*.py", "*.md", "*.mdx", "*.rst", "*.toml"]
 exclude = ["tests/*", "*/tests/*", "*/test_*", ".venv/*", "node_modules/*", "vendor/*"]
 max_files = 2000
 max_sections = 100
@@ -18,5 +18,19 @@ max_prompt_chars = 24000
 # A workflow timeout remains the hard process-level bound.
 analysis_timeout_seconds = 120
 max_provider_requests = 50
+# Model "stale" verdicts below this self-rated confidence become review (0 = off).
+min_stale_confidence = 0.0
+# Ask the model twice and require both to say "stale" (doubles diagnosis calls).
+require_agreement = false
 # To analyze JSON config, add "*.json" to include above. Keep report/build
 # directories excluded to avoid treating generated artifacts as source config.
+# Also report stale function/class docstrings on signature changes (never edited).
+docstrings = false
+
+# Monorepo package folders: docs inside one only link to code in the same folder.
+scopes = []
+
+# Never check CHANGELOG/CHANGES/HISTORY/NEWS/release notes: they record history.
+skip_history_docs = true
+# Body-only code changes flag sections about the unit ("subject") or every mention ("all").
+behaviour_scope = "all"

@@ -79,7 +79,7 @@ Forks are read-only. `pull_request_target` is refused. Do not run PR-controlled 
 - `artifacts/docatlas-integration/`: real DocAtlas source snapshot, a controlled numeric-default change, an added declaration fixture, guarded repair and original-base recheck. Existing review findings remain visible.
 - [Requirements matrix](docs/REQUIREMENTS.md): all 18 guide steps mapped to implementation, deliberate changes and pending release work.
 
-Supported semantic inputs: Python AST, module-level uppercase config assignments and TOML keys. Python function signatures, class schemas, endpoint decorators and common CLI decorators are inspected statically. Markdown/MDX section boundaries are fence-aware. Complex dynamic configuration, runtime-discovered APIs, arbitrary languages, semantic entailment of all prose and undocumented features are outside automatic-repair guarantees.
+Supported semantic inputs: Python AST, module-level uppercase config assignments and TOML keys. Python function signatures, class schemas, endpoint decorators and common CLI decorators are inspected statically. Markdown/MDX section boundaries are fence-aware. JavaScript and TypeScript (`.js`, `.mjs`, `.cjs`, `.jsx`, `.ts`, `.mts`, `.cts`, `.tsx`) are parsed with tree-sitter when the optional `docmend[js]` extra is installed (the Docker action includes it): top-level and exported functions, arrow functions, classes with fields and methods, and uppercase constants. Add the extensions to `include` to analyse them; without the extra they are reported as coverage gaps. reStructuredText (`.rst`) sections use underline/overline headings, skip literal blocks and directives, and read inline literals written as double backticks. Complex dynamic configuration, runtime-discovered APIs, arbitrary languages, semantic entailment of all prose and undocumented features are outside automatic-repair guarantees.
 
 Repeated Python definitions and reassigned uppercase names are retained as ambiguous
 evidence rather than aborting a repository scan. Members of repeated classes are
@@ -88,6 +88,82 @@ requires human review and receives no automatic or model-generated repair. Unrel
 symbols remain analyzable. Strict review gates still fail on these coverage gaps;
 report-only workflows can finish and upload the evidence. Invalid source syntax
 remains an operational error.
+
+
+### Reason codes
+
+Every finding carries `codes`: exactly one outcome code, plus codes for what changed and hints for the reviewer. They appear in `report.json`, `summary.md`, SARIF `properties.codes` and the dashboard.
+
+| Code | Meaning |
+|---|---|
+| `fixed-declared-fact` | A declared signature/default/config value was rewritten exactly from the new code |
+| `detected-stale` | A declared value is provably out of date, but no edit is generated for this kind of section |
+| `edit-rejected` | A computed edit failed the structural safety checks |
+| `verified-current` | The declared value in the doc already matches the new code |
+| `reverify-failed` | A rewrite was computed but did not re-check, so none is offered |
+| `ambiguous-definition` | The code defines this name more than once; the active one is not inferred |
+| `model-stale` | The model judged the section out of date |
+| `model-accurate` | The model judged the section still correct |
+| `model-uncertain` | The model could not decide |
+| `low-confidence` | The model's stale verdict was below min_stale_confidence |
+| `models-disagree` | Two model answers disagreed |
+| `draft-rejected` | A model draft failed mechanical checks or the critic |
+| `needs-review` | Linked code changed and no rule can prove the doc right or wrong |
+| `contract-changed` | Signature, default, type or config value changed |
+| `behaviour-changed` | Only the body changed; the interface is the same |
+| `renamed` | The unit was renamed with an identical body |
+| `added` | The unit is new |
+| `removed` | The unit was deleted |
+| `multiple-changes` | More than one linked unit changed; judged together |
+| `ambiguous-name` | The short name matches several units |
+| `docstring` | The section is a code docstring; DocMend never edits code |
+| `old-value-in-prose` | The old value still appears in the section outside any declared fact |
+| `no-declared-fact` | The section never states the value as Signature/Default, so it cannot be fixed automatically |
+
+## Evidence (current)
+
+Three independent checks, from strongest guarantee to most realistic.
+
+**1. Stress suite: hard guarantees, enforced in CI** (`tests/stress/`, 97 labelled cases). Every literal type, signature shape changes, config/TOML/dataclass/argparse values, Python code blocks, reStructuredText, prose defaults, history/example/migration docs, ambiguity and untouched controls. CI fails if DocMend ever:
+
+| Guarantee | Result |
+|---|---|
+| edits, or calls stale, a doc that is still correct | 0 |
+| misses (stays silent on) a doc that is stale | 0 |
+| writes a fix that differs from the hand-written correct text | 0 |
+
+Each case also pins its expected outcome (fixed / review / quiet), so any behaviour change has to be made on purpose.
+
+**2. Frozen evaluation splits** (constructed, labelled before scoring):
+
+| Split | Stale confirmed + fixed | Stale left for review | Correct docs left unchanged | Wrong fixes |
+|---|---|---|---|---|
+| development | 12 / 16 | 4 | 12 / 12 | 0 |
+| challenge | 9 / 14 | 5 | 10 / 10 | 0 |
+| source-backed | 3 / 6 | 3 | 6 / 6 | 0 |
+
+**3. Real history** (`scripts/mine_history.py`). 300 first-parent commits each of click, requests, httpx and typer were replayed as pull requests with each repository's own config. A flagged section counts as *confirmed* if a human rewrote it within the next 30 commits; the *baseline* is the same rate for sections DocMend did not flag. These labels are inferred from history (silver), not human-verified.
+
+| Repository | Flags | Confirmed later | Baseline | Lift |
+|---|---|---|---|---|
+| click | 1,279 | 20.8% | 17.4% | 1.2× |
+| requests | 478 | 11.1% | 8.7% | 1.3× |
+| httpx | 1,090 | 6.3% | 4.9% | 1.3× |
+| typer | 510 | 33.1% | 11.4% | 2.9× |
+
+**Automatic fixes on real history: 0.** Not because the rules refused: in these 1,200 commits, default and config values rarely changed (requests: 6, all private regexes or `setup.py`; httpx: 39, almost all one `verify=True` → `None` change), and no linked doc stated an old value as a checkable fact. Automatic fixes matter where docs state defaults explicitly (API references, internal tools, config-heavy apps); on mature libraries DocMend's value is the review flags.
+
+`behaviour_scope = "subject"` (opt-in) cut flags 27% (3,357 → 2,436) and raised precision from 16.6% to 18.4%, but lost 109 confirmed flags (557 → 448), and the stress suite shows it can miss real drift, so it is not the default.
+
+What this shows honestly: flags carry signal on every repository, but most review flags on real projects are not followed by a doc edit, so review is a prompt to look, not a verdict. Skipping changelogs (now the default) removed 7% of flags with no loss of confirmed ones.
+
+Reproduce:
+
+```bash
+PYTHONPATH=src:tests python -m unittest test_stress
+git clone https://github.com/pallets/click /tmp/click
+python scripts/mine_history.py /tmp/click --commits 300 --window 30 --output artifacts/history/click
+```
 
 ## Expanded evaluation (0.1.1)
 

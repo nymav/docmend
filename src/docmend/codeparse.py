@@ -1,23 +1,36 @@
-"""Python AST and TOML semantic contracts. Analysis does not execute source files."""
+"""Python AST, TOML and (optional) JavaScript/TypeScript semantic contracts. Analysis does not execute source files."""
 from __future__ import annotations
 
 import ast
 import json
+import re
 import tomllib
 
 from .models import CodeUnit, DocMendError, digest
 from .adapters import parse_json
+from . import jsparse
 
 
 def _literal(node: ast.AST | None) -> str | None:
     return ast.unparse(node) if node is not None else None
 
 
-def _body(nodes: list[ast.stmt]) -> str:
-    nodes = list(nodes)
+def _body(nodes: list[ast.stmt], params: set[str] | frozenset = frozenset()) -> str:
+    import copy
+    nodes = copy.deepcopy(list(nodes))
     if nodes and isinstance(nodes[0], ast.Expr) and isinstance(nodes[0].value, ast.Constant) and isinstance(nodes[0].value.value, str):
         nodes = nodes[1:]
-    return ast.dump(ast.Module(body=nodes, type_ignores=[]), include_attributes=False)
+    module = ast.Module(body=nodes, type_ignores=[])
+    # Renaming a local variable is not a behaviour change. Assigned names that
+    # are not parameters or global/nonlocal get canonical names in order of
+    # first appearance, so pure local renames hash identically.
+    declared = {n for node in ast.walk(module) if isinstance(node, (ast.Global, ast.Nonlocal)) for n in node.names}
+    local = {n.id for n in ast.walk(module) if isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del))} - set(params) - declared
+    canonical: dict[str, str] = {}
+    for node in ast.walk(module):
+        if isinstance(node, ast.Name) and node.id in local:
+            node.id = canonical.setdefault(node.id, f"_local{len(canonical)}")
+    return ast.dump(module, include_attributes=False)
 
 
 def parse_python(path: str, text: str) -> list[CodeUnit]:
@@ -46,14 +59,20 @@ def parse_python(path: str, text: str) -> list[CodeUnit]:
                     cli_names += [k.value.value for k in decorator.keywords if k.arg == "name" and isinstance(k.value, ast.Constant) and isinstance(k.value.value, str)]
             contract = json.dumps({"signature": signature, "return": _literal(node.returns), "decorators": decorators, "async": isinstance(node, ast.AsyncFunctionDef)}, sort_keys=True)
             start = min([node.lineno, *[d.lineno for d in node.decorator_list]])
-            units.append(CodeUnit(f"{path}::{name}", path, name, "function", start, node.end_lineno or node.lineno, "".join(lines[start-1:node.end_lineno]), contract, digest(_body(node.body)), {"signature": signature, "params": defaults, "decorators": decorators, "cli_names": cli_names}))
+            units.append(CodeUnit(f"{path}::{name}", path, name, "function", start, node.end_lineno or node.lineno, "".join(lines[start-1:node.end_lineno]), contract, digest(_body(node.body, {a.arg for a in [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg] if a})), {"signature": signature, "params": defaults, "decorators": decorators, "cli_names": cli_names}))
         elif isinstance(node, ast.ClassDef):
             name = prefix + node.name
             fields = {n.target.id: {"annotation": _literal(n.annotation), "value": _literal(n.value)} for n in node.body if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)}
-            contract = json.dumps({"bases": [ast.unparse(b) for b in node.bases], "fields": fields, "decorators": [ast.unparse(d) for d in node.decorator_list]}, sort_keys=True)
+            # Field default values are their own config units (below), so a
+            # changed default is one precise change, not a whole-class change.
+            shape = {k: v["annotation"] for k, v in fields.items()}
+            contract = json.dumps({"bases": [ast.unparse(b) for b in node.bases], "fields": shape, "decorators": [ast.unparse(d) for d in node.decorator_list]}, sort_keys=True)
             start = min([node.lineno, *[d.lineno for d in node.decorator_list]])
             units.append(CodeUnit(f"{path}::{name}", path, name, "class", start, node.end_lineno or node.lineno, "".join(lines[start-1:node.end_lineno]), contract, digest(contract), {"fields": fields}))
             for child in node.body:
+                if isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name) and child.value is not None:
+                    value = _literal(child.value)
+                    units.append(CodeUnit(f"{path}::{name}.{child.target.id}", path, f"{name}.{child.target.id}", "config", child.lineno, child.end_lineno or child.lineno, "".join(lines[child.lineno-1:child.end_lineno]), json.dumps({"value": value}), digest(json.dumps({"value": value})), {"value": value, "owner": name}))
                 if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                     visit(child, name + ".")
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -65,6 +84,14 @@ def parse_python(path: str, text: str) -> list[CodeUnit]:
                     units.append(CodeUnit(f"{path}::{target.id}", path, target.id, "config", node.lineno, node.end_lineno or node.lineno, "".join(lines[node.lineno-1:node.end_lineno]), contract, digest(contract), {"value": value}))
     for node in tree.body:
         visit(node)
+    # argparse: parser.add_argument("--flag", ..., default=<literal>) anywhere.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "add_argument":
+            flags = [a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str) and a.value.startswith("--")]
+            default = next((k.value for k in node.keywords if k.arg == "default"), None)
+            if flags and default is not None and isinstance(default, (ast.Constant, ast.UnaryOp)):
+                value = _literal(default)
+                units.append(CodeUnit(f"{path}::{flags[0]}", path, flags[0], "config", node.lineno, node.end_lineno or node.lineno, "".join(lines[node.lineno-1:node.end_lineno]), json.dumps({"value": value}), digest(json.dumps({"value": value})), {"value": value, "cli_flag": True}))
     return units
 
 
@@ -74,6 +101,24 @@ def parse_toml(path: str, text: str) -> list[CodeUnit]:
     except tomllib.TOMLDecodeError as exc:
         raise DocMendError(f"Cannot parse TOML: {path}") from exc
     units = []
+    lines = text.splitlines()
+
+    def locate(parts: list[str]) -> tuple[int, int]:
+        # Best-effort one-based line of a leaf key; whole file if not found.
+        begin = 0
+        if len(parts) > 1:
+            table = re.compile(r"^\s*\[\s*" + r"\s*\.\s*".join(re.escape(p) for p in parts[:-1]) + r"\s*\]\s*(#.*)?$")
+            begin = next((i + 1 for i, line in enumerate(lines) if table.match(line)), None)
+            if begin is None:
+                return 1, len(lines)
+        key = re.compile(r"^\s*[\"']?" + re.escape(parts[-1]) + r"[\"']?\s*=")
+        for i in range(begin, len(lines)):
+            if i > begin and re.match(r"^\s*\[", lines[i]):
+                break
+            if key.match(lines[i]):
+                return i + 1, i + 1
+        return 1, len(lines)
+
     def walk(values: dict, prefix: str = "") -> None:
         for key, value in values.items():
             name = prefix + key
@@ -81,7 +126,8 @@ def parse_toml(path: str, text: str) -> list[CodeUnit]:
                 walk(value, name + ".")
             else:
                 val = json.dumps(value, sort_keys=True, default=str)
-                units.append(CodeUnit(f"{path}::{name}", path, name, "config", 1, len(text.splitlines()), f"{name} = {val}", val, digest(val), {"value": val}))
+                start, end = locate(name.split("."))
+                units.append(CodeUnit(f"{path}::{name}", path, name, "config", start, end, f"{name} = {val}", val, digest(val), {"value": val}))
     walk(document)
     return units
 
@@ -91,10 +137,13 @@ def parse_code(files: dict[str, str], *, review_duplicates: bool = False) -> dic
     for path, text in sorted(files.items()):
         if path.endswith(".py"):
             units.extend(parse_python(path, text))
-        elif path.endswith(".json"):
+        elif path.endswith(".json") and not path.endswith(".docmend-baseline.json"):
             units.extend(parse_json(path, text))
         elif path.endswith(".toml") and not path.endswith(".docmend.toml"):
             units.extend(parse_toml(path, text))
+        elif path.endswith(jsparse.JS_SUFFIXES) and jsparse.available():
+            # Without the optional extra these files are reported as coverage gaps.
+            units.extend(jsparse.parse_js(path, text))
     groups: dict[str, list[CodeUnit]] = {}
     for unit in units:
         groups.setdefault(unit.id, []).append(unit)

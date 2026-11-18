@@ -7,8 +7,8 @@ import os
 import re
 import tempfile
 
-from .docparse import headings
-from .recovery import JOURNAL, write_journal, clear_journal, sync_directory
+from .docparse import DOC_SUFFIXES, headings, rst_heading_styles
+from .recovery import JOURNAL, write_journal, clear_journal, sync_directory, audit
 from .models import DocMendError, Edit, digest
 
 
@@ -16,22 +16,34 @@ def validate_edit(edit: Edit) -> None:
     if not isinstance(edit.path, str) or type(edit.start) is not int or type(edit.end) is not int or not all(isinstance(x,str) for x in (edit.before,edit.after,edit.file_hash)):
         raise DocMendError("Malformed repair field types")
     p = PurePosixPath(edit.path)
-    if p.is_absolute() or ".." in p.parts or "\\" in edit.path or not edit.path.endswith((".md", ".mdx")) or any(x == ".git" for x in p.parts):
-        raise DocMendError("Repair target must be a repository-relative Markdown file")
+    if p.is_absolute() or ".." in p.parts or "\\" in edit.path or not edit.path.endswith(DOC_SUFFIXES) or any(x == ".git" for x in p.parts):
+        raise DocMendError("Repair target must be a repository-relative Markdown or reStructuredText file")
     if edit.mode not in ("safe", "draft") or edit.evidence not in ("static", "model"):
         raise DocMendError("Unknown repair mode/evidence")
     if edit.mode == "safe" and edit.evidence != "static":
         raise DocMendError("Model-only edits cannot be automatically approved")
     if edit.start < 0 or edit.end <= edit.start or edit.before == edit.after or not edit.after.strip():
         raise DocMendError("Invalid or empty repair span")
-    if [h for _, h in headings(edit.before)] != [h for _, h in headings(edit.after)]:
+    rst = edit.path.endswith(".rst")
+    titles = (lambda t: [(h, st) for _, h, st in rst_heading_styles(t)]) if rst else (lambda t: [h for _, h in headings(t)])
+    if titles(edit.before) != titles(edit.after):
         raise DocMendError("Repair must preserve section headings")
+    if rst:
+        blocks = lambda t: re.findall(r"^\s*\.\.\s.*$|^.*::[ \t]*$", t, re.M)
+        if blocks(edit.before) != blocks(edit.after):
+            raise DocMendError("Repair must preserve reStructuredText directives and literal blocks")
+        targets = lambda t: re.findall(r"<([^<>\s]+)>`_{1,2}", t)
+        if targets(edit.before) != targets(edit.after):
+            raise DocMendError("Repair must preserve existing link targets")
     fences = lambda text: re.findall(r"^ {0,3}(?:`{3,}|~{3,}).*$", text, re.M)
     if fences(edit.before) != fences(edit.after):
         raise DocMendError("Repair must preserve code fence structure")
     links = lambda text: re.findall(r"\]\(([^)]+)\)", text)
     if links(edit.before) != links(edit.after):
         raise DocMendError("Repair must preserve existing link targets")
+    refs = lambda text: sorted(re.findall(r"^ {0,3}\[[^\]]+\]:\s*\S+.*$", text, re.M))
+    if refs(edit.before) != refs(edit.after):
+        raise DocMendError("Repair must preserve reference-style link definitions")
     if edit.before.endswith("\n") != edit.after.endswith("\n"):
         raise DocMendError("Repair must preserve trailing newline convention")
     if len(edit.after) > max(1000, len(edit.before)*2):
@@ -128,6 +140,11 @@ def apply_local(root: Path, edits: list[Edit], *, include_drafts: bool = False) 
             atomic_write(path, value)
         if journal_ready:
             clear_journal(root)
+        if written:
+            by_path = defaultdict(list)
+            for edit in selected:
+                by_path[edit.path].append({"section": edit.section_id, "mode": edit.mode, "evidence": edit.evidence})
+            audit(root, "apply", [{"path": name, "before_sha256": digest(originals[name]), "after_sha256": digest(replacements[name]), "edits": by_path[name]} for name in written])
         return written
     except Exception:
         for name in reversed(written):

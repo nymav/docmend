@@ -16,16 +16,66 @@ def cell(text: str) -> str:
 
 
 def summary(report: Report) -> dict:
-    return {"changed_units": len(report.changes), "stale": sum(f.status == "stale" for f in report.findings), "review": sum(f.status == "review" for f in report.findings), "accurate": sum(f.status == "accurate" for f in report.findings), "safe_edits": sum(e.mode == "safe" for e in report.edits), "draft_edits": sum(e.mode == "draft" for e in report.edits), "coverage_gaps": sum("No documentation mapping" in w for w in report.warnings)}
+    return {"changed_units": len(report.changes), "stale": sum(f.status == "stale" for f in report.findings), "review": sum(f.status == "review" and not f.acknowledged for f in report.findings), "acknowledged": sum(f.acknowledged for f in report.findings), "accurate": sum(f.status == "accurate" for f in report.findings), "safe_edits": sum(e.mode == "safe" for e in report.edits), "draft_edits": sum(e.mode == "draft" for e in report.edits), "coverage_gaps": sum("No documentation mapping" in w for w in report.warnings), "incomplete": int(report.incomplete)}
+
+
+MAX_CARDS = 40
+
+
+def _fence(text: str) -> str:
+    # Inline HTML does not stop Markdown parsing, so every character that
+    # Markdown or HTML treats specially becomes an entity.
+    raw = re.sub(r"[\x00-\x1f\x7f]", " ", str(text))[:300]
+    safe = "".join(f"&#{ord(ch)};" if ch in "&<>\"'`|*_[]\\~#!$" else ch for ch in raw)
+    return "<code>" + safe + "</code>"
+
+
+def evidence_section(report: Report) -> list[str]:
+    """Collapsible evidence card per stale/review finding, capped for PR comments."""
+    from .models import REASON_CODES
+    shown = [f for f in report.findings if f.status in ("stale", "review") and f.card]
+    if not shown:
+        return []
+    out = ["", "### Evidence", ""]
+    for f in shown[:MAX_CARDS]:
+        c = f.card
+        outcome = f.codes[0] if f.codes else ""
+        out += [f"<details><summary>{cell(f.path)}: {cell(f.heading)} — <code>{cell(outcome)}</code></summary>", ""]
+        out.append(f"- **Rule:** {cell(REASON_CODES.get(outcome, f.reason))}")
+        d = c.get("doc", {})
+        out.append(f"- **Doc:** {_fence(d.get('path', ''))} lines {d.get('lines', ['?', '?'])[0]}–{d.get('lines', ['?', '?'])[1]} at head {_fence(report.head[:12])}")
+        for fact in c.get("declared_facts", [])[:5]:
+            out.append(f"  - line {fact['line']} declares {_fence(fact['text'])}")
+        if not c.get("declared_facts"):
+            out.append("  - no declared Signature/Default fact in this section")
+        for ch in c.get("changes", []):
+            out.append(f"- **Code change:** {_fence(ch['unit'])} ({cell(ch['change'])})")
+            for side, commit in (("before", report.base), ("after", report.head)):
+                u = ch.get(side)
+                if u:
+                    out.append(f"  - {side} {_fence(commit[:12])} {_fence(u['path'])} lines {u['lines'][0]}–{u['lines'][1]}: {_fence(u['states'])}")
+                else:
+                    out.append(f"  - {side}: does not exist")
+        e = c.get("edit")
+        if e:
+            out.append(f"- **{e['mode'].title()} edit:** " + "; ".join(_fence(x) for x in e["removed"]) + " → " + "; ".join(_fence(x) for x in e["added"]))
+        out += ["", "</details>"]
+    if len(shown) > MAX_CARDS:
+        out += ["", f"{len(shown) - MAX_CARDS} more evidence cards are in report.json."]
+    return out
 
 
 def markdown(report: Report) -> str:
     counts = summary(report)
-    lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis |", "|---|---|---|---|"]
+    lines = ["<!-- docmend-summary:v1 -->", "## DocMend documentation check", "", *(["> **Incomplete analysis.** Some linked sections were not checked; see Analysis limits.", ""] if report.incomplete else []), f"Base `{report.base}` · Head `{report.head}`", "", " | ".join(f"**{k.replace('_',' ')}:** {v}" for k, v in counts.items()), "", "| Document section | Status | Evidence | Diagnosis | Codes |", "|---|---|---|---|---|"]
     for finding in report.findings:
-        lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status)} | {cell(finding.evidence)} | {cell(finding.reason)} |")
+        lines.append(f"| {cell(finding.path)}: {cell(finding.heading)} | {cell(finding.status + (' (acknowledged)' if finding.acknowledged else ''))} | {cell(finding.evidence)} | {cell(finding.reason)} | {cell(' '.join(finding.codes))} |")
     if not report.findings:
         lines += ["", "No mapped documentation drift was identified. This is not a claim of complete documentation accuracy."]
+    lines += evidence_section(report)
+    if report.behaviour_mentions_skipped:
+        report_note = f"{report.behaviour_mentions_skipped} passing mention(s) of functions whose body changed were not flagged (behaviour_scope = \"subject\")."
+        lines += ["", report_note]
     if report.warnings:
         lines += ["", "### Analysis limits", "", *["- " + cell(w) for w in report.warnings]]
     lines += ["", "Safe edits are limited to explicit documented signatures/defaults/config literals. Model judgments and drafts require review. Confidence is not a calibrated correctness probability.", ""]

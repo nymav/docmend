@@ -9,9 +9,21 @@ from urllib.parse import urlsplit
 from .models import DocMendError
 
 
+HISTORY_DOC_STEMS = ("changelog", "changes", "history", "news", "release-notes", "release_notes", "releasenotes", "whatsnew", "whats-new")
+
+
+def is_history_doc(path: str) -> bool:
+    """CHANGELOG.md, CHANGES.rst, HISTORY.md, NEWS, docs/release-notes.md and the like."""
+    p = PurePosixPath(path)
+    if p.suffix.lower() not in (".md", ".mdx", ".rst", ".txt", ""):
+        return False
+    stem = p.stem.lower()
+    return stem in HISTORY_DOC_STEMS or any(part.lower() in ("changelog", "changes", "release-notes", "releasenotes") for part in p.parts[:-1])
+
+
 @dataclass(frozen=True)
 class Config:
-    include: tuple[str, ...] = ("*.py", "*.md", "*.mdx", "*.toml")
+    include: tuple[str, ...] = ("*.py", "*.md", "*.mdx", "*.rst", "*.toml")
     exclude: tuple[str, ...] = (".git/*", "tests/*", "test/*", "*/tests/*", "*/test_*", ".venv/*", "venv/*", "node_modules/*", "vendor/*")
     max_files: int = 2000
     max_file_bytes: int = 500_000
@@ -26,10 +38,36 @@ class Config:
     max_prompt_chars: int = 24000
     analysis_timeout_seconds: int = 120
     max_provider_requests: int = 50
+    # A model "stale" verdict below this self-rated confidence becomes review.
+    min_stale_confidence: float = 0.0
+    # Ask the model twice; a "stale" verdict needs both answers to agree.
+    require_agreement: bool = False
+
+    # Also check function/class docstrings when a signature changes. Docstring
+    # findings are review/stale reports only; DocMend never edits .py files.
+    docstrings: bool = False
+
+    # Monorepo package folders. Docs inside a scope only link to code in the
+    # same scope; docs outside every scope (e.g. root README) link anywhere.
+    scopes: tuple[str, ...] = ()
+
+    # Changelogs and release notes record history: they must not be rewritten
+    # to match new code. Mined history showed flags on them were confirmed by
+    # later human edits less often than chance (1.6% vs 14.4% overall).
+    skip_history_docs: bool = True
+
+    # Body-only (behaviour) changes flag every section that mentions the unit
+    # ("all", default) or only sections about it ("subject": heading, declared
+    # fact or two mentions). "subject" is quieter but can miss real drift, e.g.
+    # "`send` retries three times" mentions send once; real history showed
+    # behaviour-only flags confirmed as often as any other, so it is opt-in.
+    behaviour_scope: str = "all"
 
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
         if p.is_absolute() or ".." in p.parts or "\\" in path:
+            return False
+        if self.skip_history_docs and is_history_doc(path):
             return False
         return any(fnmatch(path, pat) for pat in self.include) and not any(fnmatch(path, pat) for pat in self.exclude)
 
@@ -42,7 +80,7 @@ class Config:
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise DocMendError(f"Unknown config keys: {', '.join(sorted(unknown))}")
-        for key in ("include", "exclude"):
+        for key in ("include", "exclude", "scopes"):
             if key in values:
                 if not isinstance(values[key], list) or not all(isinstance(x, str) for x in values[key]):
                     raise DocMendError(f"{key} must be a list of strings")
@@ -54,6 +92,22 @@ class Config:
                 raise DocMendError(f"{key} must be between 1 and {upper}")
         if not isinstance(cfg.similarity_threshold, (float, int)) or not math.isfinite(cfg.similarity_threshold) or not 0 <= cfg.similarity_threshold <= 1:
             raise DocMendError("similarity_threshold must be a finite number in [0,1]")
+        if type(cfg.min_stale_confidence) not in (int, float) or not math.isfinite(cfg.min_stale_confidence) or not 0 <= cfg.min_stale_confidence <= 1:
+            raise DocMendError("min_stale_confidence must be a finite number in [0,1]")
+        if type(cfg.require_agreement) is not bool:
+            raise DocMendError("require_agreement must be true or false")
+
+        if type(cfg.docstrings) is not bool:
+            raise DocMendError("docstrings must be true or false")
+        if cfg.behaviour_scope not in ("subject", "all"):
+            raise DocMendError('behaviour_scope must be "subject" or "all"')
+        if type(cfg.skip_history_docs) is not bool:
+            raise DocMendError("skip_history_docs must be true or false")
+
+        for scope in cfg.scopes:
+            p = PurePosixPath(scope)
+            if not scope or p.is_absolute() or ".." in p.parts or "\\" in scope or any(c in scope for c in "*?["):
+                raise DocMendError("scopes must be plain repository-relative folders")
         for key in ("endpoint", "model", "embedding_model", "api_key_env"):
             if not isinstance(getattr(cfg, key), str):
                 raise DocMendError(f"{key} must be a string")

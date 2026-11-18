@@ -4,11 +4,16 @@ from pathlib import PurePosixPath
 from .models import Report, digest
 
 
+def _safe(path: str) -> bool:
+    p = PurePosixPath(path)
+    return not p.is_absolute() and '..' not in p.parts and '\\' not in path
+
+
 def sarif(report: Report, sections: list[dict] | None = None) -> dict:
     spans = {s["id"]: s for s in (sections or [])}
     results = []
     for finding in report.findings:
-        if finding.status not in ('stale', 'review'):
+        if finding.status not in ('stale', 'review') or finding.acknowledged:
             continue
         path = PurePosixPath(finding.path)
         if path.is_absolute() or '..' in path.parts or '\\' in finding.path:
@@ -23,7 +28,12 @@ def sarif(report: Report, sections: list[dict] | None = None) -> dict:
             'message': {'text': finding.heading + ': ' + finding.reason},
             'locations': [{'physicalLocation': physical}],
             'partialFingerprints': {'docmendSection/v1': digest(finding.section_id + ':' + finding.status)},
-            'properties': {'evidence': finding.evidence, 'requiresHumanReview': True},
+            'properties': {'evidence': finding.evidence, 'requiresHumanReview': True, 'codes': list(finding.codes), 'card': finding.card},
+            'relatedLocations': [
+                {'id': i, 'physicalLocation': {'artifactLocation': {'uri': quote(ch['after']['path'], safe='/'), 'uriBaseId': '%SRCROOT%'},
+                 'region': {'startLine': ch['after']['lines'][0], 'endLine': ch['after']['lines'][1]}},
+                 'message': {'text': f"{ch['change']}: {ch['unit']}"}}
+                for i, ch in enumerate(finding.card.get('changes', [])) if ch.get('after') and _safe(ch['after']['path'])],
         })
     return {'version': '2.1.0', '$schema': 'https://json.schemastore.org/sarif-2.1.0.json', 'runs': [{
         'tool': {'driver': {'name': 'DocMend', 'rules': [

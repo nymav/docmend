@@ -23,6 +23,7 @@ export function validateReport(raw) {
     path(f.path); text(f.heading, 'section heading', 10000); text(f.reason, 'diagnosis');
     text(f.section_id, 'section ID', 10000); text(f.evidence, 'evidence', 10000);
     array(f.unit_ids, 'symbol references').forEach(v => text(v, 'symbol', 10000));
+    if (f.codes !== undefined) array(f.codes, 'reason codes', 50).forEach(v => { if (!/^[a-z][a-z-]{1,40}$/.test(text(v, 'reason code', 64))) throw new Error('Invalid reason code.'); });
   }
   for (const e of array(raw.edits, 'edits')) {
     if (!e || !['safe', 'draft'].includes(e.mode)) throw new Error('Invalid edit mode.');
@@ -48,6 +49,23 @@ export function counts(report) {
   for (const f of report.findings) result[f.status]++;
   for (const e of report.edits) result[e.mode]++;
   return result;
+}
+/** Counts per loaded report, in load order, plus sections flagged repeatedly. */
+export function trend(entries) {
+  const rows = entries.map(e => ({ name: e.name, ...counts(e.report) }));
+  const seen = new Map();
+  for (const e of entries) {
+    const flagged = new Set(e.report.findings.filter(f => f.status === 'stale' || f.status === 'review').map(f => f.section_id));
+    for (const f of e.report.findings) {
+      if (!flagged.has(f.section_id) || seen.get(f.section_id)?.last === e) continue;
+      const item = seen.get(f.section_id) || { section: f.section_id, path: f.path, heading: f.heading, times: 0 };
+      item.times++; item.last = e; seen.set(f.section_id, item);
+    }
+  }
+  const hotspots = [...seen.values()].filter(x => x.times > 1)
+    .sort((a, b) => b.times - a.times || a.section.localeCompare(b.section)).slice(0, 5)
+    .map(({ last, ...x }) => x);
+  return { rows, hotspots };
 }
 export function filterFindings(report, query = '', status = 'all') {
   const q = query.toLowerCase().trim();

@@ -34,6 +34,13 @@ class GitStore:
             raise DocMendError("Expected an immutable commit identifier")
         return value
 
+    def staged_tree(self) -> str:
+        """Tree object for the staged index (adds only a tree object to .git)."""
+        value = self.run("write-tree").decode().strip()
+        if not re.fullmatch(r"[0-9a-f]{40,64}", value):
+            raise DocMendError("Could not read the staged index")
+        return value
+
     def snapshot(self, sha: str, cfg: Config) -> dict[str, str]:
         result: dict[str, str] = {}
         total = 0
@@ -75,8 +82,8 @@ class GitStore:
         from .adapters import SUPPORTED_SUFFIXES
         eligible = replace(cfg, include=("*",))
         paths = self.run("diff", "--name-only", "-z", "--no-renames", base, head, "--").split(b"\0")
-        extensions = ('.py','.toml','.json','.js','.jsx','.ts','.tsx','.go','.rs','.java','.yaml','.yml')
-        return sorted(path for raw in paths if raw for path in [raw.decode('utf-8')] if eligible.accepts(path) and path.endswith(extensions) and (not cfg.accepts(path) or not path.endswith(SUPPORTED_SUFFIXES)))
+        extensions = ('.py','.toml','.json','.js','.mjs','.cjs','.jsx','.ts','.mts','.cts','.tsx','.go','.rs','.java','.yaml','.yml')
+        return sorted(path for raw in paths if raw for path in [raw.decode('utf-8')] if eligible.accepts(path) and path.endswith(extensions) and path != '.docmend-baseline.json' and (not cfg.accepts(path) or not path.endswith(SUPPORTED_SUFFIXES)))
 
     def trusted_config(self, base: str, path: str = ".docmend.toml") -> Config:
         try:
