@@ -7,7 +7,8 @@ name = "docmend"
 version = "0.3.0"
 description = "Evidence-bound documentation drift detection and guarded repairs"
 requires-python = ">=3.11"
-license = {text = "MIT"}
+license = {text = "LicenseRef-Teyrin-Proprietary"}
+classifiers = ["License :: Other/Proprietary License", "Private :: Do Not Upload"]
 dependencies = []
 
 [project.optional-dependencies]

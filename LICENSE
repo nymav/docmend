@@ -1,21 +1,59 @@
-MIT License
+DocMend Proprietary License
 
-Copyright (c) 2026 Nikhil Yarra
+Copyright (c) 2026 Teyrin. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Ownership. DocMend, including its source code, object code, documentation,
+   dashboards, datasets, evaluation material, designs and all related files
+   (the "Software"), is the property of Teyrin and is protected by copyright
+   and other intellectual property laws. No ownership right is transferred to
+   you.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+2. No licence granted. Except as stated in a separate written agreement signed
+   by Teyrin, no licence or right is granted to you, by implication, estoppel
+   or otherwise. Being able to view the Software (for example, in a public
+   repository) does not grant any right to use it.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+3. Restrictions. Without Teyrin's prior written permission you may not:
+   (a) use, run, install or deploy the Software, in whole or in part, for any
+       purpose, including personal, internal, evaluation or commercial use;
+   (b) copy, reproduce, modify, translate or create derivative works of it;
+   (c) distribute, publish, sublicense, sell, rent, lease or lend it, or offer
+       it as a hosted, managed or software-as-a-service product;
+   (d) reverse engineer, decompile or disassemble it, except to the extent this
+       restriction is prohibited by applicable law;
+   (e) remove, alter or obscure any copyright, trademark or proprietary notice;
+   (f) use it, or any output, model, dataset or result derived from it, to
+       build, train or improve a competing product or service.
+
+   Forking this repository on GitHub is permitted only to the extent required
+   by GitHub's Terms of Service, and a fork confers no right to use the
+   Software beyond viewing it on GitHub.
+
+4. Trademarks. "Teyrin" and "DocMend" and their logos are trademarks of Teyrin.
+   No right to use them is granted.
+
+5. Contributions. Teyrin does not accept unsolicited contributions. Any
+   contribution you submit is made under the terms in CONTRIBUTING.md.
+
+6. Termination. Any use outside a written agreement with Teyrin is
+   unauthorised. Any permission Teyrin grants ends automatically if you breach
+   it, and you must then stop using and destroy all copies of the Software.
+
+7. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS
+   FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT.
+
+8. Limitation of liability. TO THE MAXIMUM EXTENT PERMITTED BY LAW, TEYRIN
+   SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   CONSEQUENTIAL OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF DATA, PROFITS OR
+   BUSINESS, ARISING FROM OR RELATED TO THE SOFTWARE.
+
+9. Prior versions. Copies of DocMend obtained before this licence took effect
+   remain governed by the licence that accompanied those copies. This licence
+   governs all later versions.
+
+10. Enforcement. Teyrin may seek injunctive relief and any other remedy
+    available at law for unauthorised use. If any provision is held
+    unenforceable, the rest remains in effect.
+
+Licensing enquiries: contact Teyrin.
