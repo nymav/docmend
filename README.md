@@ -184,7 +184,7 @@ python -m pip wheel --no-deps --no-build-isolation --wheel-dir artifacts/dist .
 
 CI includes Python 3.11/3.12/3.13 and a Docker build. Those remote jobs are configured, not asserted to have run locally. The pinned-base Docker image built successfully and the full suite passed inside it with networking disabled; the actual Action entrypoint was also smoke-tested locally. No external GitHub writes, model requests or Marketplace publication were performed.
 
-MIT licensed. Source requirement: BASWE, *15 AI Engineering Projects That Actually Land Jobs*, Project 4, pages 11–13. The guide itself is not bundled or relicensed in this code repository.
+Source requirement: BASWE, *15 AI Engineering Projects That Actually Land Jobs*, Project 4, pages 11–13. The guide itself is not bundled or relicensed in this code repository.
 
 ## 0.2.0 release improvements
 
@@ -197,3 +197,7 @@ See [the seven enhancement modules and remaining gates](docs/ENHANCEMENT-MODULES
 Opt-in JSON configuration analysis, real source regions in SARIF, independent-review dataset preparation/scoring, durable crash recovery, PR lifecycle/race guards, App-owned comment matching, runtime/request budgets and explicit live compatibility probes are implemented. See [module contracts, commands and deferred external evidence](docs/ENHANCEMENT-MODULES.md). Python/TOML remain default inputs; JSON requires trusted include patterns. Unsupported changed source is reported as incomplete coverage.
 
 `index.json.operations` records elapsed analysis time and provider attempts. Live API credentials and human-reviewed cases are not available, so those external validation gates remain unrun.
+
+## License
+
+Copyright (c) 2026 Teyrin. All rights reserved. DocMend is proprietary software; viewing this repository does not grant any right to use, copy or distribute it. See [LICENSE](LICENSE). Versions released before this change remain under the MIT terms they shipped with.
