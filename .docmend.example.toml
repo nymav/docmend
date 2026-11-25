@@ -34,3 +34,5 @@ scopes = []
 skip_history_docs = true
 # Body-only code changes flag sections about the unit ("subject") or every mention ("all").
 behaviour_scope = "all"
+# Skip body-only changes linked only through a short name several units share.
+skip_ambiguous_behaviour = true

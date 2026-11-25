@@ -510,3 +510,22 @@ class BehaviourScopeTests(unittest.TestCase):
             self.assertEqual(len(self.run_doc(doc,'subject').findings),1,doc)
     def test_invalid_scope(self):
         with self.assertRaises(DocMendError):Config.from_text('behaviour_scope = "some"\n')
+
+
+class AmbiguousBehaviourTests(unittest.TestCase):
+    BEFORE={'m.py':'class Command:\n    def invoke(self):\n        return 1\n\nclass Context:\n    def invoke(self):\n        return 1\n'}
+    AFTER={'m.py':'class Command:\n    def invoke(self):\n        return 2\n\nclass Context:\n    def invoke(self):\n        return 1\n'}
+    def run_doc(self, doc, **kw):
+        b={**self.BEFORE,'docs/a.md':doc}
+        return analyze_files(b,{**b,**self.AFTER},cfg=Config(**kw))[0]
+    def test_shared_short_name_without_class_is_skipped_and_counted(self):
+        r=self.run_doc('# Usage\n\nCall `invoke` to run it.\n')
+        self.assertEqual((r.findings,r.ambiguous_links_skipped),([],1))
+    def test_section_naming_the_class_is_still_flagged(self):
+        for doc in ['# Usage\n\n`Command.invoke` runs it.\n','# Command\n\nCall `invoke` to run it.\n']:
+            self.assertEqual(len(self.run_doc(doc).findings),1,doc)
+    def test_option_off_flags_as_before(self):
+        r=self.run_doc('# Usage\n\nCall `invoke` to run it.\n',skip_ambiguous_behaviour=False)
+        self.assertEqual((len(r.findings),r.ambiguous_links_skipped),(1,0))
+    def test_invalid_value(self):
+        with self.assertRaises(DocMendError):Config.from_text('skip_ambiguous_behaviour = "yes"\n')

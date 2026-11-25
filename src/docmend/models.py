@@ -139,6 +139,9 @@ class Report:
     # Behaviour-only changes not reported because the section only mentions
     # the unit in passing (behaviour_scope = "subject").
     behaviour_mentions_skipped: int = 0
+    # Body-only changes not reported because the section links to the unit
+    # only through a short name several units share (skip_ambiguous_behaviour).
+    ambiguous_links_skipped: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -63,6 +63,12 @@ class Config:
     # behaviour-only flags confirmed as often as any other, so it is opt-in.
     behaviour_scope: str = "all"
 
+    # A body-only change to a unit whose short name is shared by several units
+    # (`invoke`, `__init__`) is not flagged in a section that never names the
+    # unit's class: the link is a guess. On click's history these flags were
+    # confirmed by later human edits less often than chance (13.3% vs 17.4%).
+    skip_ambiguous_behaviour: bool = True
+
     def accepts(self, path: str) -> bool:
         p = PurePosixPath(path)
         if p.is_absolute() or ".." in p.parts or "\\" in path:
@@ -101,6 +107,8 @@ class Config:
             raise DocMendError("docstrings must be true or false")
         if cfg.behaviour_scope not in ("subject", "all"):
             raise DocMendError('behaviour_scope must be "subject" or "all"')
+        if type(cfg.skip_ambiguous_behaviour) is not bool:
+            raise DocMendError("skip_ambiguous_behaviour must be true or false")
         if type(cfg.skip_history_docs) is not bool:
             raise DocMendError("skip_history_docs must be true or false")
 

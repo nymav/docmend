@@ -146,14 +146,16 @@ Each case also pins its expected outcome (fixed / review / quiet), so any behavi
 
 | Repository | Flags | Confirmed later | Baseline | Lift |
 |---|---|---|---|---|
-| click | 1,279 | 20.8% | 17.4% | 1.2× |
-| requests | 478 | 11.1% | 8.7% | 1.3× |
-| httpx | 1,090 | 6.3% | 4.9% | 1.3× |
-| typer | 510 | 33.1% | 11.4% | 2.9× |
+| click | 822 | 25.5% | 17.3% | 1.5× |
+| requests | 470 | 11.3% | 8.6% | 1.3× |
+| httpx | 875 | 6.1% | 5.0% | 1.2× |
+| typer | 538 | 30.9% | 11.0% | 2.8× |
 
 **Automatic fixes on real history: 0.** Not because the rules refused: in these 1,200 commits, default and config values rarely changed (requests: 6, all private regexes or `setup.py`; httpx: 39, almost all one `verify=True` → `None` change), and no linked doc stated an old value as a checkable fact. Automatic fixes matter where docs state defaults explicitly (API references, internal tools, config-heavy apps); on mature libraries DocMend's value is the review flags.
 
 `behaviour_scope = "subject"` (opt-in) cut flags 27% (3,357 → 2,436) and raised precision from 16.6% to 18.4%, but lost 109 confirmed flags (557 → 448), and the stress suite shows it can miss real drift, so it is not the default.
+
+`skip_ambiguous_behaviour` (default) stops flagging body-only changes linked only through a short name several units share (`invoke`, `__init__`) when the section never names the class. On click, those flags were confirmed less often than chance (13.3% vs 17.4%); skipping them cut click's flags 36% (1,279 → 822) and raised its confirmation rate from 20.8% to 25.5%. The table above is measured with it on, on fresh clones (the window moved, so requests and typer differ slightly from the earlier run).
 
 What this shows honestly: flags carry signal on every repository, but most review flags on real projects are not followed by a doc edit, so review is a prompt to look, not a verdict. Skipping changelogs (now the default) removed 7% of flags with no loss of confirmed ones.
 
