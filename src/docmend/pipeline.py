@@ -43,6 +43,21 @@ def docstring_sections(files: dict[str, str], units: dict) -> dict:
     return sections
 
 
+def names_owner(section, unit) -> bool:
+    """Does the section name the unit's class or its qualified name?
+
+    A shared short name such as `invoke` only picks one unit when the section
+    also says which class it means.
+    """
+    import re
+    parts = unit.name.split(".")
+    if len(parts) < 2:
+        return False
+    owner = parts[-2]
+    text = section.heading + "\n" + section.text
+    return bool(re.search(r"(?<![\w])" + re.escape(owner) + r"(?!\w)", text))
+
+
 def about_unit(section, unit) -> bool:
     """Is this section about the unit, rather than mentioning it in passing?
 
@@ -114,6 +129,7 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
     for edge in old_index["links"] + new_index["links"]:
         linked[edge["unit"]].add(edge["section"])
     suspects = defaultdict(list)
+    short_names = Counter(u.name.rsplit(".", 1)[-1] for u in new_units.values())
     for change in changes:
         # A renamed unit is documented under its old name, its new name, or both.
         ids = {u.id for u in (change.before, change.after) if u}
@@ -122,6 +138,11 @@ def analyze_files(before: dict[str, str], after: dict[str, str], *, base: str = 
             if sid in new_docs:
                 if change.kind == "behaviour" and cfg.behaviour_scope == "subject" and not about_unit(new_docs[sid], change.unit):
                     report.behaviour_mentions_skipped += 1
+                    continue
+                if (change.kind == "behaviour" and cfg.skip_ambiguous_behaviour
+                        and short_names[change.unit.name.rsplit(".", 1)[-1]] > 1
+                        and not names_owner(new_docs[sid], change.unit)):
+                    report.ambiguous_links_skipped += 1
                     continue
                 suspects[sid].append(change)
         if not sections:
